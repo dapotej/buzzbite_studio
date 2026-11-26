@@ -8,7 +8,7 @@ const Body = z.object({
   spec: StoredPostSpecSchema.optional(),
   linkedin: z.string().max(5000).optional(),
   instagram: z.string().max(5000).optional(),
-  status: z.enum(["draft", "approved", "posted"]).optional(),
+  status: z.enum(["review", "approved", "posted"]).optional(),
   publish_on: z.iso.date().nullable().optional(),
 });
 

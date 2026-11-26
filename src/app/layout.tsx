@@ -3,8 +3,8 @@ import "./globals.css";
 import "@/templates/post.css";
 
 export const metadata: Metadata = {
-  title: "Brandloom",
-  description: "On-brand social content, from idea to finished post.",
+  title: "SocialPilot",
+  description: "Your social media on autopilot, in your brand.",
   icons: { icon: "/icon.svg" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link
           rel="stylesheet"
           crossOrigin="anonymous"
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap"
         />
       </head>
       <body>{children}</body>

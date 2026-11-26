@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { POST_H, POST_W, PostCanvas } from "@/templates/PostCanvas";
+import { POST_W, PostCanvas } from "@/templates/PostCanvas";
 import { ensureFonts } from "@/lib/export";
-import type { BrandProfile, PostSpec } from "@/lib/types";
+import { isVideoPost, type BrandProfile, type PostSpec } from "@/lib/types";
 
 /** A post rendered at full size and scaled to fit its container's width. */
 export function ScaledPost(props: {
@@ -13,12 +13,11 @@ export function ScaledPost(props: {
   animate?: boolean;
   canvasRef?: React.Ref<HTMLDivElement>;
   replayKey?: number;
+  badge?: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0.25);
-  useEffect(() => {
-    ensureFonts([props.brand.fonts.display, props.brand.fonts.body]);
-  }, [props.brand.fonts.display, props.brand.fonts.body]);
+  const [scale, setScale] = useState(0);
+  useEffect(() => { ensureFonts([props.brand.fonts.display, props.brand.fonts.body]); }, [props.brand.fonts.display, props.brand.fonts.body]);
   useEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -27,8 +26,9 @@ export function ScaledPost(props: {
     return () => ro.disconnect();
   }, []);
   return (
-    <div className="thumb" ref={box} style={{ aspectRatio: `${POST_W} / ${POST_H}` }}>
-      <div className="scaler" style={{ transform: `scale(${scale})` }} ref={props.canvasRef} key={props.replayKey}>
+    <div className="thumb" ref={box} style={{ aspectRatio: "4 / 5" }}>
+      {props.badge !== false && isVideoPost(props.spec) && <span className="vbadge">Video</span>}
+      <div className="scaler" style={{ transform: `scale(${scale})`, visibility: scale ? "visible" : "hidden" }} ref={props.canvasRef} key={props.replayKey}>
         <PostCanvas brand={props.brand} spec={props.spec} logoOnLight={props.logoOnLight} logoOnDark={props.logoOnDark} animate={props.animate} />
       </div>
     </div>

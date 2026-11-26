@@ -72,3 +72,12 @@ create table if not exists trend_reports (
   created_at timestamptz not null default now()
 );
 create index if not exists trend_reports_brand_idx on trend_reports(brand_id, created_at desc);
+
+-- v2: posting plan per brand, media linked to the post it was made for, post titles.
+alter table brands add column if not exists settings jsonb not null default '{"days":[0,2,4],"time":"10:00"}'::jsonb;
+alter table media add column if not exists post_id uuid references posts(id) on delete set null;
+alter table media add column if not exists role text;          -- image | video, when made for a post
+create index if not exists media_post_idx on media(post_id);
+alter table posts add column if not exists title text not null default '';
+alter table posts add column if not exists pillar text not null default '';
+-- post status: making (photos/video still generating) | review | approved | posted
