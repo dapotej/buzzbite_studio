@@ -18,7 +18,7 @@ Brandloom keeps a profile for each brand (voice, audience, content pillars, fact
 | App | Next.js 15 (App Router), TypeScript |
 | Database | Neon Postgres (`@neondatabase/serverless`, HTTP driver) |
 | AI | Claude API (`@anthropic-ai/sdk`), model `claude-opus-5-5`, structured outputs, server-side refusal fallbacks |
-| Rendering | Templates are React components (`src/templates`). Exports run in the browser: `html-to-image` for PNG frames, WebCodecs + `mp4-muxer` for MP4. No server rendering, no storage bucket. |
+| Rendering | Templates are React components (`src/templates`). Exports run in the browser: `html-to-image` for PNG frames, WebCodecs + `mp4-muxer` for MP4. No server rendering. |
 | Media | Vercel Blob for files; fal.ai for generation (`FAL_IMAGE_MODEL`, `FAL_VIDEO_MODEL` to swap models) |
 | Trend research | Claude with the `web_search` server tool, then structured into recommendations |
 | Hosting | Vercel |
@@ -39,7 +39,7 @@ Wrap words in `*asterisks*` to highlight them in the brand's accent colour.
 ## Running locally
 
 ```bash
-cp .env.example .env.local   # fill in the four values
+cp .env.example .env.local   # fill in the values
 npm install
 npm run db:migrate           # creates the tables (safe to re-run)
 npm run dev
