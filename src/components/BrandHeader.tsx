@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { Brand } from "@/lib/types";
 
-export function BrandHeader({ brand, current }: { brand: Brand; current: "studio" | "calendar" | "settings" }) {
+export function BrandHeader({ brand, current }: { brand: Brand; current: "studio" | "trends" | "media" | "calendar" | "settings" }) {
   const tabs = [
     { key: "studio", href: `/brands/${brand.id}`, label: "Ideas & posts" },
+    { key: "trends", href: `/brands/${brand.id}/trends`, label: "Trend radar" },
+    { key: "media", href: `/brands/${brand.id}/media`, label: "Media" },
     { key: "calendar", href: `/brands/${brand.id}/calendar`, label: "Calendar" },
     { key: "settings", href: `/brands/${brand.id}/settings`, label: "Brand profile" },
   ] as const;

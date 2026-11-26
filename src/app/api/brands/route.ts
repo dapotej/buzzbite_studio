@@ -13,7 +13,8 @@ function blankProfile(name: string): BrandProfile {
   return {
     name, oneLiner: "", offerings: [], audience: [], pillars: [], voice: { traits: [], do: [], dont: [] },
     facts: [], ctas: [], hashtags: [], website: "",
-    colors: { primary: "#FFB020", dark: "#15171A", light: "#F5F4F0" },
+    colors: { primary: "#FFB020", dark: "#15171A", light: "#F5F4F0", supporting: [] },
+    imageStyle: "",
     fonts: { display: "Poppins", body: "Inter" },
   };
 }

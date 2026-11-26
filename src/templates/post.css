@@ -64,3 +64,19 @@
 @keyframes bl-fade { to { opacity: 1; } }
 @keyframes bl-wipe { to { clip-path: inset(0 0 0 0); } }
 @keyframes bl-drive { from { offset-distance: 0%; } to { offset-distance: 100%; } }
+
+/* ---------- supporting colours ---------- */
+.bl-bar { display: flex; gap: 10px; margin: 28px 0 8px; }
+.bl-bar i { display: block; width: 72px; height: 14px; border-radius: 7px; }
+
+/* ---------- photo ---------- */
+.bl-photo .bl-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.bl-media-empty { display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--dark) 80%, #fff); color: rgba(255,255,255,.6); font-size: 34px; }
+.bl-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 42%, rgba(0,0,0,.82) 100%); }
+.bl-photo .bl-kicker { color: #fff; }
+.bl-photo .acc { color: var(--p); }
+.bl-photo .bl-sub { color: rgba(255,255,255,.85); }
+.bl-photo .bl-foot { color: rgba(255,255,255,.8); }
+.bl-photo .bl-media { z-index: 0; }
+.bl-photo .bl-shade { z-index: 1; }
+.bl-photo .bl-body, .bl-photo .bl-foot { z-index: 2; }

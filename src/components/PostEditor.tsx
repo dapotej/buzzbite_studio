@@ -3,8 +3,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ScaledPost } from "./PostThumb";
+import { useMedia } from "./useMedia";
 import { downloadBlob, exportMp4, exportPng } from "@/lib/export";
-import { TEMPLATES, TEMPLATE_IDS, type Brand, type Post, type PostSpec, type TemplateId } from "@/lib/types";
+import { TEMPLATES, TEMPLATE_IDS, isVideoPost, type Brand, type Media, type Post, type PostSpec, type TemplateId } from "@/lib/types";
 
 type Saved = "saved" | "saving" | "unsaved" | "error";
 
@@ -16,6 +17,7 @@ const FIELDS: Record<TemplateId, (keyof PostSpec)[]> = {
   stat: ["kicker", "big", "headline", "sub"],
   list: ["kicker", "headline", "items"],
   chat: ["bubbles", "headline"],
+  photo: ["kicker", "headline", "sub"],
   motion: ["kicker", "lines", "endline", "cta"],
 };
 
@@ -30,6 +32,16 @@ export function PostEditor({ brand, initial }: { brand: Brand; initial: Post }) 
   const [message, setMessage] = useState("");
   const [replay, setReplay] = useState(0);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const lib = useMedia(brand.id);
+  const [waitingFor, setWaitingFor] = useState<string | null>(null);
+  useEffect(() => { void lib.reload(); }, [lib.reload]);
+  // When an image generated for this post finishes, put it in the post.
+  useEffect(() => {
+    if (!waitingFor) return;
+    const m = lib.items.find((x) => x.id === waitingFor);
+    if (m?.status === "ready" && m.url) { pickMedia(m); setWaitingFor(null); }
+    if (!m && lib.error) setWaitingFor(null);
+  }, [lib.items, lib.error, waitingFor]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef(post);
   latest.current = post;
@@ -119,8 +131,18 @@ export function PostEditor({ brand, initial }: { brand: Brand; initial: Post }) 
     router.push(`/brands/${brand.id}`);
   }
 
+  function pickMedia(m: Media) {
+    setSpec({ template: "photo", media: { id: m.id, url: m.url!, kind: m.kind } });
+    setReplay((r) => r + 1);
+  }
+  async function generateForPost() {
+    const brief = [post.spec.headline.replace(/\*/g, ""), post.spec.sub, post.linkedin.split("\n")[0]].filter(Boolean).join(". ");
+    const m = await lib.generate({ kind: "image", brief: `Background photo for a social post: ${brief}` });
+    if (m) setWaitingFor(m.id);
+  }
+
   const spec = post.spec;
-  const isVideo = TEMPLATES[spec.template].video;
+  const isVideo = isVideoPost(spec);
   const words = post[platform].trim() ? post[platform].trim().split(/\s+/).length : 0;
 
   return (
@@ -179,6 +201,29 @@ export function PostEditor({ brand, initial }: { brand: Brand; initial: Post }) 
                 {(["light", "dark"] as const).map((t) => (
                   <button key={t} type="button" aria-pressed={spec.theme === t} onClick={() => setSpec({ theme: t })}>{t === "light" ? "Light" : "Dark"}</button>
                 ))}
+              </div>
+            )}
+            {spec.template === "photo" && (
+              <div className="stack" style={{ gap: 8 }}>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>Photo or clip</span>
+                {lib.items.filter((m) => m.status === "ready").length > 0 ? (
+                  <div className="media-strip" role="group" aria-label="Media library">
+                    {lib.items.filter((m) => m.status === "ready").map((m) => (
+                      <button key={m.id} type="button" aria-pressed={spec.media?.id === m.id} onClick={() => pickMedia(m)} title={m.description}>
+                        {m.kind === "video" ? <video src={m.url!} muted playsInline preload="metadata" /> : <img src={m.url!} alt={m.description} />}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="small muted">The media library is empty. <Link href={`/brands/${brand.id}/media`}>Upload photos or clips</Link>, or generate one.</p>
+                )}
+                <div className="row">
+                  <button className="btn" type="button" onClick={generateForPost} disabled={waitingFor !== null}>
+                    {waitingFor ? "Generating an image… (about 20 s)" : "Generate an image for this post"}
+                  </button>
+                  <Link className="small muted" href={`/brands/${brand.id}/media`}>Manage media</Link>
+                </div>
+                {lib.error && <p className="error small" role="alert">{lib.error}</p>}
               </div>
             )}
             <p className="small muted">Wrap words in *asterisks* to highlight them in your accent colour.</p>

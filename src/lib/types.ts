@@ -24,7 +24,13 @@ export const BrandProfileSchema = z.object({
     primary: z.string().describe("Lead accent colour as #RRGGBB."),
     dark: z.string().describe("Dark background colour as #RRGGBB."),
     light: z.string().describe("Light background colour as #RRGGBB."),
+    supporting: z
+      .array(z.string())
+      .describe("0-4 supporting colours as #RRGGBB, used for numbers, charts, highlights and motion accents."),
   }),
+  imageStyle: z
+    .string()
+    .describe("Art direction for photos and generated images: subjects, setting, light, mood. No text in images."),
   fonts: z.object({
     display: z.string().describe("Google Fonts family for headlines."),
     body: z.string().describe("Google Fonts family for body text."),
@@ -42,7 +48,7 @@ export type Brand = {
   updated_at: string;
 };
 
-export const TEMPLATE_IDS = ["statement", "stat", "list", "chat", "motion"] as const;
+export const TEMPLATE_IDS = ["statement", "stat", "list", "chat", "photo", "motion"] as const;
 export type TemplateId = (typeof TEMPLATE_IDS)[number];
 
 /** The visual part of a post. Every template reads the fields it needs and ignores the rest. */
@@ -65,7 +71,11 @@ export const PostSpecSchema = z.object({
   endline: z.string().describe("motion template only: the closing line on the end card."),
   cta: z.string().describe("Call to action shown on the motion end card."),
 });
-export type PostSpec = z.infer<typeof PostSpecSchema>;
+export const MediaRefSchema = z.object({ id: z.string(), url: z.string(), kind: z.enum(["image", "video"]) });
+export type MediaRef = z.infer<typeof MediaRefSchema>;
+/** The spec as stored: what Claude writes, plus the photo or clip chosen for it. */
+export const StoredPostSpecSchema = PostSpecSchema.extend({ media: MediaRefSchema.nullable().optional() });
+export type PostSpec = z.infer<typeof StoredPostSpecSchema>;
 
 export type Post = {
   id: string;
@@ -96,5 +106,37 @@ export const TEMPLATES: Record<TemplateId, { name: string; description: string; 
   stat: { name: "Big number", description: "One striking figure with a label.", video: false },
   list: { name: "Checklist", description: "A headline and 3-4 numbered points.", video: false },
   chat: { name: "Chat", description: "A chat thread that dramatises the customer's problem.", video: false },
+  photo: { name: "Photo", description: "A photo or video clip from the media library with a headline over it.", video: false },
   motion: { name: "Animated", description: "A 9-second animated video with an end card.", video: true },
 };
+
+/** True when the post exports as an MP4. */
+export const isVideoPost = (spec: PostSpec) => spec.template === "motion" || (spec.template === "photo" && spec.media?.kind === "video");
+
+export type Media = {
+  id: string;
+  brand_id: string;
+  kind: "image" | "video";
+  status: "ready" | "pending" | "failed";
+  source: "upload" | "ai";
+  url: string | null;
+  description: string;
+  error: string | null;
+  created_at: string;
+};
+
+export const TrendItemSchema = z.object({
+  title: z.string().describe("The trend, news item or moment, in under 12 words."),
+  whyNow: z.string().describe("1-2 sentences: what is happening and why it matters to this brand's audience now."),
+  recommendation: z.string().describe("The post to make: hook and angle, 1-2 sentences."),
+  pillar: z.string().describe("Exactly one of the brand's pillar names."),
+  format: z.enum(["image", "video"]),
+  urgency: z.enum(["this week", "this month", "evergreen"]),
+  sources: z.array(z.object({ title: z.string(), url: z.string() })).describe("Only URLs that appear in the research notes."),
+});
+export type TrendItem = z.infer<typeof TrendItemSchema>;
+export const TrendReportSchema = z.object({
+  summary: z.string().describe("3-4 sentences: the state of play for this brand's market right now."),
+  items: z.array(TrendItemSchema),
+});
+export type TrendReport = z.infer<typeof TrendReportSchema> & { id: string; brand_id: string; created_at: string };

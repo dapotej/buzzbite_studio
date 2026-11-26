@@ -46,3 +46,29 @@ create table if not exists posts (
   updated_at timestamptz not null default now()
 );
 create index if not exists posts_brand_idx on posts(brand_id, publish_on);
+
+-- Photos and video clips: uploaded, or generated with fal.ai.
+create table if not exists media (
+  id uuid primary key default gen_random_uuid(),
+  brand_id uuid not null references brands(id) on delete cascade,
+  kind text not null,                     -- image | video
+  status text not null default 'ready',   -- ready | pending | failed
+  source text not null default 'upload',  -- upload | ai
+  url text,                               -- public Vercel Blob URL once ready
+  description text not null default '',
+  fal_endpoint text,
+  fal_request_id text,
+  error text,
+  created_at timestamptz not null default now()
+);
+create index if not exists media_brand_idx on media(brand_id, created_at desc);
+
+-- Trend radar: Claude's web research, turned into post recommendations.
+create table if not exists trend_reports (
+  id uuid primary key default gen_random_uuid(),
+  brand_id uuid not null references brands(id) on delete cascade,
+  summary text not null,
+  items jsonb not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists trend_reports_brand_idx on trend_reports(brand_id, created_at desc);

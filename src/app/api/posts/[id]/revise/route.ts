@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { revisePost } from "@/lib/ai";
-import { getBrand, getPost, updatePost } from "@/lib/db";
+import { getBrand, getPost, listMedia, updatePost } from "@/lib/db";
+import { attachMedia } from "@/lib/posts";
 import { handle, notFound } from "@/lib/http";
 
 export const maxDuration = 120;
@@ -15,7 +16,11 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   if (!post) return notFound();
   const brand = await getBrand(post.brand_id);
   if (!brand) return notFound();
-  const revised = await revisePost(brand.profile, post, instruction);
+  const media = (await listMedia(brand.id)).filter((m) => m.status === "ready");
+  const draft = await revisePost(brand.profile, post, instruction, media);
+  // Keep the chosen photo unless the revision picked a different one.
+  if (!draft.mediaId && post.spec.media) draft.mediaId = post.spec.media.id;
+  const revised = attachMedia(draft, media);
   const saved = await updatePost(id, revised);
   return NextResponse.json(saved);
 });

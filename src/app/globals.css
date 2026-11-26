@@ -108,3 +108,9 @@ input[type="color"] { width: 44px; height: 40px; border: 1px solid var(--line); 
 .logo-box { display: flex; align-items: center; justify-content: center; height: 84px; border-radius: 10px; border: 1px solid var(--line); padding: 12px; }
 .logo-box img { max-height: 56px; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.media-pending { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 12px; text-align: center; color: var(--muted); font-size: 13px;
+  background: repeating-linear-gradient(135deg, var(--sunk) 0 12px, var(--surface) 12px 24px); }
+.media-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 92px; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.media-strip button { padding: 0; border: 2px solid transparent; border-radius: 10px; background: var(--sunk); cursor: pointer; aspect-ratio: 4 / 5; overflow: hidden; position: relative; }
+.media-strip button[aria-pressed="true"] { border-color: var(--accent); }
+.media-strip img, .media-strip video { width: 100%; height: 100%; object-fit: cover; display: block; }

@@ -17,13 +17,75 @@ export function ensureFonts(families: string[]) {
   }
 }
 
-const opts = (fontEmbedCSS: string) => ({ width: POST_W, height: POST_H, pixelRatio: 1, fontEmbedCSS, cacheBust: false });
+// Videos are skipped: freezeVideos() puts an image of the current frame next to each one.
+const opts = (fontEmbedCSS: string) => ({
+  width: POST_W, height: POST_H, pixelRatio: 1, fontEmbedCSS, cacheBust: false,
+  filter: (n: HTMLElement) => n.tagName !== "VIDEO",
+});
+
+function seek(video: HTMLVideoElement, seconds: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (Math.abs(video.currentTime - seconds) < 0.001) return resolve();
+    const done = () => { video.removeEventListener("seeked", done); resolve(); };
+    video.addEventListener("seeked", done);
+    video.currentTime = seconds;
+  });
+}
+
+async function ready(video: HTMLVideoElement) {
+  if (video.readyState >= 2) return;
+  await new Promise<void>((resolve, reject) => {
+    video.addEventListener("loadeddata", () => resolve(), { once: true });
+    video.addEventListener("error", () => reject(new Error("The video could not be loaded for export.")), { once: true });
+  });
+}
+
+/**
+ * html-to-image stretches <video> frames, so each video is swapped for an <img> of its
+ * current frame, which keeps the video's object-fit crop. Returns a function that undoes the swap.
+ */
+async function freezeVideos(node: HTMLElement, atSeconds?: number): Promise<() => void> {
+  const undo: (() => void)[] = [];
+  for (const video of Array.from(node.querySelectorAll("video"))) {
+    await ready(video);
+    video.pause();
+    if (atSeconds !== undefined && video.duration) await seek(video, atSeconds % video.duration);
+    // Grab the frame at the video's own size; the <img> crops it with object-fit like the video did.
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d")!.drawImage(video, 0, 0);
+    const img = document.createElement("img");
+    img.className = video.className;
+    img.alt = "";
+    img.src = canvas.toDataURL("image/jpeg", 0.92);
+    await img.decode().catch(() => undefined);
+    video.style.display = "none";
+    video.after(img);
+    undo.push(() => { img.remove(); video.style.display = ""; });
+  }
+  return () => undo.forEach((u) => u());
+}
+
+/** How long the MP4 should be: the motion template's length, or the background clip's (max 15 s). */
+export async function videoSeconds(node: HTMLElement): Promise<number> {
+  const video = node.querySelector("video");
+  if (!video) return MOTION_SECONDS;
+  await ready(video);
+  return Math.min(15, Math.max(3, Math.floor(video.duration || MOTION_SECONDS)));
+}
 
 export async function exportPng(node: HTMLElement): Promise<Blob> {
   await document.fonts.ready;
   const css = await getFontEmbedCSS(node);
-  const url = await toPng(node, opts(css));
-  return (await fetch(url)).blob();
+  const restore = await freezeVideos(node);
+  try {
+    const url = await toPng(node, opts(css));
+    return (await fetch(url)).blob();
+  } finally {
+    restore();
+    node.querySelectorAll("video").forEach((v) => void v.play().catch(() => undefined));
+  }
 }
 
 function animationsOf(node: HTMLElement): Animation[] {
@@ -55,7 +117,7 @@ export async function exportMp4(node: HTMLElement, onProgress: (fraction: number
   await document.fonts.ready;
   const fontCss = await getFontEmbedCSS(node);
   const fps = 30;
-  const frames = MOTION_SECONDS * fps;
+  const frames = (await videoSeconds(node)) * fps;
 
   const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: picked.muxCodec, width: POST_W, height: POST_H }, fastStart: "in-memory" });
   let encodeError: unknown = null;
@@ -74,7 +136,13 @@ export async function exportMp4(node: HTMLElement, onProgress: (fraction: number
         a.pause();
         a.currentTime = t;
       }
-      const canvas = await toCanvas(node, opts(fontCss));
+      const restore = await freezeVideos(node, f / fps);
+      let canvas: HTMLCanvasElement;
+      try {
+        canvas = await toCanvas(node, opts(fontCss));
+      } finally {
+        restore();
+      }
       const frame = new VideoFrame(canvas, { timestamp: Math.round((f * 1_000_000) / fps), duration: Math.round(1_000_000 / fps) });
       encoder.encode(frame, { keyFrame: f % (fps * 2) === 0 });
       frame.close();
@@ -91,6 +159,7 @@ export async function exportMp4(node: HTMLElement, onProgress: (fraction: number
       a.currentTime = 0;
       a.play();
     }
+    node.querySelectorAll("video").forEach((v) => { v.currentTime = 0; void v.play().catch(() => undefined); });
   }
   return { blob: new Blob([muxer.target.buffer], { type: "video/mp4" }), codec: picked.codec };
 }

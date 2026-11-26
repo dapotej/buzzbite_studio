@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { deletePost, updatePost } from "@/lib/db";
 import { handle, notFound } from "@/lib/http";
-import { PostSpecSchema } from "@/lib/types";
+import { StoredPostSpecSchema } from "@/lib/types";
 
 const Body = z.object({
-  spec: PostSpecSchema.optional(),
+  spec: StoredPostSpecSchema.optional(),
   linkedin: z.string().max(5000).optional(),
   instagram: z.string().max(5000).optional(),
   status: z.enum(["draft", "approved", "posted"]).optional(),

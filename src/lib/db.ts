@@ -1,6 +1,6 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
-import type { Brand, BrandProfile, Idea, Post, PostSpec } from "./types";
+import type { Brand, BrandProfile, Idea, Media, Post, PostSpec, TrendItem, TrendReport } from "./types";
 
 function client() {
   const url = process.env.DATABASE_URL;
@@ -23,11 +23,16 @@ async function currentWorkspace(): Promise<string> {
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : String(v));
 const day = (v: unknown) => (v == null ? null : v instanceof Date ? v.toISOString().slice(0, 10) : String(v).slice(0, 10));
 
+/** Fills fields added after a brand was saved, so older rows keep working. */
+function normalizeProfile(p: BrandProfile): BrandProfile {
+  return { ...p, imageStyle: p.imageStyle ?? "", colors: { ...p.colors, supporting: p.colors.supporting ?? [] } };
+}
+
 function toBrand(r: Record<string, unknown>): Brand {
   return {
     id: r.id as string,
     name: r.name as string,
-    profile: r.profile as BrandProfile,
+    profile: normalizeProfile(r.profile as BrandProfile),
     logo_on_light: (r.logo_on_light as string) ?? null,
     logo_on_dark: (r.logo_on_dark as string) ?? null,
     created_at: iso(r.created_at),
@@ -146,4 +151,74 @@ export async function updatePost(
 }
 export async function deletePost(id: string): Promise<void> {
   await client()`delete from posts where id = ${id}`;
+}
+
+// ---------- media ----------
+function toMedia(r: Record<string, unknown>): Media {
+  return {
+    id: r.id as string,
+    brand_id: r.brand_id as string,
+    kind: r.kind as Media["kind"],
+    status: r.status as Media["status"],
+    source: r.source as Media["source"],
+    url: (r.url as string) ?? null,
+    description: r.description as string,
+    error: (r.error as string) ?? null,
+    created_at: iso(r.created_at),
+  };
+}
+export type MediaRow = Media & { fal_endpoint: string | null; fal_request_id: string | null };
+
+export async function listMedia(brandId: string): Promise<Media[]> {
+  const rows = await client()`select * from media where brand_id = ${brandId} and status <> 'failed' order by created_at desc limit 200`;
+  return rows.map(toMedia);
+}
+export async function getMediaRow(id: string): Promise<MediaRow | null> {
+  const rows = await client()`select * from media where id = ${id}`;
+  if (!rows[0]) return null;
+  return { ...toMedia(rows[0]), fal_endpoint: (rows[0].fal_endpoint as string) ?? null, fal_request_id: (rows[0].fal_request_id as string) ?? null };
+}
+export async function insertMedia(m: {
+  brand_id: string;
+  kind: Media["kind"];
+  status: Media["status"];
+  source: Media["source"];
+  url: string | null;
+  description: string;
+  fal_endpoint?: string | null;
+  fal_request_id?: string | null;
+}): Promise<Media> {
+  const rows = await client()`insert into media (brand_id, kind, status, source, url, description, fal_endpoint, fal_request_id)
+    values (${m.brand_id}, ${m.kind}, ${m.status}, ${m.source}, ${m.url}, ${m.description}, ${m.fal_endpoint ?? null}, ${m.fal_request_id ?? null}) returning *`;
+  return toMedia(rows[0]);
+}
+export async function finishMedia(id: string, patch: { status: "ready"; url: string } | { status: "failed"; error: string }): Promise<void> {
+  if (patch.status === "ready") await client()`update media set status = 'ready', url = ${patch.url}, error = null where id = ${id}`;
+  else await client()`update media set status = 'failed', error = ${patch.error} where id = ${id}`;
+}
+export async function deleteMedia(id: string): Promise<MediaRow | null> {
+  const row = await getMediaRow(id);
+  if (row) await client()`delete from media where id = ${id}`;
+  return row;
+}
+
+// ---------- trend radar ----------
+function toReport(r: Record<string, unknown>): TrendReport {
+  return { id: r.id as string, brand_id: r.brand_id as string, summary: r.summary as string, items: r.items as TrendItem[], created_at: iso(r.created_at) };
+}
+export async function latestTrendReport(brandId: string): Promise<TrendReport | null> {
+  const rows = await client()`select * from trend_reports where brand_id = ${brandId} order by created_at desc limit 1`;
+  return rows[0] ? toReport(rows[0]) : null;
+}
+export async function getTrendReport(id: string): Promise<TrendReport | null> {
+  const rows = await client()`select * from trend_reports where id = ${id}`;
+  return rows[0] ? toReport(rows[0]) : null;
+}
+export async function insertTrendReport(brandId: string, summary: string, items: TrendItem[]): Promise<TrendReport> {
+  const rows = await client()`insert into trend_reports (brand_id, summary, items) values (${brandId}, ${summary}, ${JSON.stringify(items)}::jsonb) returning *`;
+  return toReport(rows[0]);
+}
+export async function insertIdea(brandId: string, i: Pick<Idea, "title" | "angle" | "pillar" | "format">): Promise<Idea> {
+  const rows = await client()`insert into ideas (brand_id, title, angle, pillar, format) values (${brandId}, ${i.title}, ${i.angle}, ${i.pillar}, ${i.format}) returning *`;
+  return toIdea(rows[0]);
 }

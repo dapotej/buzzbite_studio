@@ -54,9 +54,10 @@ export function BrandForm({ brand }: { brand: Brand }) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const g = (k: string) => String(f.get(k) ?? "").trim();
-    for (const [k, v] of Object.entries(colors)) {
-      if (!HEX.test(v)) return setError(`The ${k} colour must look like #1A2B3C.`);
+    for (const k of ["primary", "dark", "light"] as const) {
+      if (!HEX.test(colors[k])) return setError(`The ${k} colour must look like #1A2B3C.`);
     }
+    if (colors.supporting.some((c) => !HEX.test(c))) return setError("Each secondary colour must look like #1A2B3C.");
     const profile: BrandProfile = {
       name: g("name") || brand.name,
       oneLiner: g("oneLiner"),
@@ -70,6 +71,7 @@ export function BrandForm({ brand }: { brand: Brand }) {
       hashtags: lines(g("hashtags")),
       colors,
       fonts: { display: g("fontDisplay") || "Poppins", body: g("fontBody") || "Inter" },
+      imageStyle: g("imageStyle"),
     };
     setState("saving");
     setError("");
@@ -126,6 +128,24 @@ export function BrandForm({ brand }: { brand: Brand }) {
             </label>
           ))}
         </div>
+        <div className="stack" style={{ gap: 8 }}>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>Secondary colours <span className="muted" style={{ fontWeight: 400 }}>Up to 4. Used for numbers, bars, map pins and motion accents.</span></span>
+          <div className="swatches">
+            {colors.supporting.map((c, i) => (
+              <span key={i} className="swatch">
+                <input type="color" aria-label={`Secondary colour ${i + 1}`} value={HEX.test(c) ? c : "#000000"}
+                  onChange={(e) => setColors((x) => ({ ...x, supporting: x.supporting.map((v, j) => (j === i ? e.target.value.toUpperCase() : v)) }))} />
+                <input type="text" aria-label={`Secondary colour ${i + 1} hex`} value={c} style={{ width: 100 }}
+                  onChange={(e) => setColors((x) => ({ ...x, supporting: x.supporting.map((v, j) => (j === i ? e.target.value : v)) }))} />
+                <button type="button" className="btn btn-ghost" aria-label={`Remove secondary colour ${i + 1}`}
+                  onClick={() => setColors((x) => ({ ...x, supporting: x.supporting.filter((_, j) => j !== i) }))}>Remove</button>
+              </span>
+            ))}
+            {colors.supporting.length < 4 && (
+              <button type="button" className="btn" onClick={() => setColors((x) => ({ ...x, supporting: [...x.supporting, "#888888"] }))}>Add colour</button>
+            )}
+          </div>
+        </div>
         <div className="row" style={{ alignItems: "stretch" }}>
           <label className="field" htmlFor="fontDisplay" style={{ flex: 1, minWidth: 200 }}>Headline font<span className="hint">Any Google Fonts family name.</span>
             <input id="fontDisplay" name="fontDisplay" type="text" defaultValue={p.fonts.display} /></label>
@@ -151,6 +171,7 @@ export function BrandForm({ brand }: { brand: Brand }) {
 
       <section className="card stack">
         <h2>Audience and content</h2>
+        {T({ name: "imageStyle", label: "Photo and image style", hint: "Art direction for AI images: subjects, setting, light, mood.", value: p.imageStyle ?? "", rows: 3 })}
         {T({ name: "audience", label: "Audience", hint: "One group per line, most important first.", value: p.audience.join("\n") })}
         {T({ name: "pillars", label: "Content pillars", hint: "3-6 recurring themes, one per line, as Name: description", value: pairsToText(p.pillars), rows: 6 })}
         {T({ name: "facts", label: "Facts posts may use", hint: "Numbers, claims and proof points that are true today. Posts never use numbers that are not here.", value: p.facts.join("\n"), rows: 6 })}

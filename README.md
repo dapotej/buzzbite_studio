@@ -4,10 +4,12 @@ On-brand social content, from idea to finished post.
 
 Brandloom keeps a profile for each brand (voice, audience, content pillars, facts, colours, fonts and logos). From that profile it:
 
-1. **Suggests post ideas** across the brand's pillars, using the season and anything you ask it to focus on.
-2. **Turns an idea into a finished post**: it picks a template, writes the on-image text, and writes separate LinkedIn and Instagram captions.
-3. **Renders the post in the brand's look**, live in the browser, and exports a 1080×1350 PNG or a 9-second H.264 MP4 for animated posts.
-4. **Revises on request** ("make it about Abuja, and punchier") and keeps a calendar of what goes out when.
+1. **Researches trends** (Trend radar): Claude searches the web for news, events, seasonal moments, competitor activity and audience conversations, then recommends posts with sources.
+2. **Suggests post ideas** across the brand's pillars, using the season and anything you ask it to focus on.
+3. **Keeps a media library** of uploaded photos and clips, and generates images (and animates them into 5-second clips) with fal.ai in the brand's art direction.
+4. **Turns an idea into a finished post**: it picks a template, writes the on-image text, and writes separate LinkedIn and Instagram captions.
+5. **Renders the post in the brand's look** (accent plus up to four secondary colours), live in the browser, and exports a 1080×1350 PNG, or an H.264 MP4 for animated posts and posts with a video background.
+6. **Revises on request** ("make it about Abuja, and punchier") and keeps a calendar of what goes out when.
 
 ## Stack
 
@@ -17,6 +19,8 @@ Brandloom keeps a profile for each brand (voice, audience, content pillars, fact
 | Database | Neon Postgres (`@neondatabase/serverless`, HTTP driver) |
 | AI | Claude API (`@anthropic-ai/sdk`), model `claude-opus-5-5`, structured outputs, server-side refusal fallbacks |
 | Rendering | Templates are React components (`src/templates`). Exports run in the browser: `html-to-image` for PNG frames, WebCodecs + `mp4-muxer` for MP4. No server rendering, no storage bucket. |
+| Media | Vercel Blob for files; fal.ai for generation (`FAL_IMAGE_MODEL`, `FAL_VIDEO_MODEL` to swap models) |
+| Trend research | Claude with the `web_search` server tool, then structured into recommendations |
 | Hosting | Vercel |
 
 ## Templates
@@ -27,6 +31,7 @@ Brandloom keeps a profile for each brand (voice, audience, content pillars, fact
 | Big number | One striking figure from the brand's facts |
 | Checklist | A headline and 3-4 numbered points |
 | Chat | A chat thread that dramatises the customer's problem |
+| Photo | A library photo or video clip, full-bleed, with a headline over it |
 | Animated | 9-second video: lines appear one by one, then an end card |
 
 Wrap words in `*asterisks*` to highlight them in the brand's accent colour.
@@ -46,6 +51,8 @@ Environment variables:
 - `ANTHROPIC_API_KEY`: Claude API key
 - `APP_PASSWORD`: the password used to sign in (v1 has one shared login)
 - `AUTH_SECRET`: at least 32 random characters, e.g. `openssl rand -hex 32`
+- `BLOB_READ_WRITE_TOKEN`: Vercel Blob store token
+- `FAL_KEY`: fal.ai API key (only needed for AI images and video)
 
 ## Roadmap to a product
 

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { ScaledPost } from "./PostThumb";
-import { TEMPLATES, type Brand, type Post } from "@/lib/types";
+import { isVideoPost, type Brand, type Post } from "@/lib/types";
 
 export function fmtDay(d: string | null) {
   if (!d) return "Not scheduled";
@@ -24,7 +24,7 @@ export function PostGrid({ brand, posts }: { brand: Brand; posts: Post[] }) {
           <ScaledPost brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} animate={false} />
           <div className="row" style={{ gap: 6 }}>
             <span className={`status status-${p.status}`}>{p.status[0].toUpperCase() + p.status.slice(1)}</span>
-            {TEMPLATES[p.spec.template].video && <span className="chip chip-video">Video</span>}
+            {isVideoPost(p.spec) && <span className="chip chip-video">Video</span>}
             <span className="spacer" />
             <span className="small muted">{fmtDay(p.publish_on)}</span>
           </div>
