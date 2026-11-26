@@ -1,0 +1,36 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { POST_H, POST_W, PostCanvas } from "@/templates/PostCanvas";
+import { ensureFonts } from "@/lib/export";
+import type { BrandProfile, PostSpec } from "@/lib/types";
+
+/** A post rendered at full size and scaled to fit its container's width. */
+export function ScaledPost(props: {
+  brand: BrandProfile;
+  spec: PostSpec;
+  logoOnLight: string | null;
+  logoOnDark: string | null;
+  animate?: boolean;
+  canvasRef?: React.Ref<HTMLDivElement>;
+  replayKey?: number;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.25);
+  useEffect(() => {
+    ensureFonts([props.brand.fonts.display, props.brand.fonts.body]);
+  }, [props.brand.fonts.display, props.brand.fonts.body]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setScale(el.clientWidth / POST_W));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div className="thumb" ref={box} style={{ aspectRatio: `${POST_W} / ${POST_H}` }}>
+      <div className="scaler" style={{ transform: `scale(${scale})` }} ref={props.canvasRef} key={props.replayKey}>
+        <PostCanvas brand={props.brand} spec={props.spec} logoOnLight={props.logoOnLight} logoOnDark={props.logoOnDark} animate={props.animate} />
+      </div>
+    </div>
+  );
+}
