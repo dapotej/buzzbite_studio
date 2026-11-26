@@ -1,0 +1,619 @@
+<title>Brandloom Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: Buffer-style app shell (ink sidebar + work area), Canva-style canvas-first post screens, editorial page headlines.
+   A deliberate single light look; every colour is set explicitly. */
+:root {
+  color-scheme: light;
+  --ink: #111216;          /* sidebar, primary text */
+  --paper: #FFFFFF;        /* cards, canvas */
+  --desk: #EEF0F3;         /* work area behind posts */
+  --line: #D9DDE3;
+  --muted: #5C6370;
+  --saffron: #FFB020;      /* Brandloom accent */
+  --saffron-ink: #7A4D00;
+  --ok: #157A44; --ok-bg: #DDF3E6;
+  --display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
+  --text: "Inter", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Beamer brand kit (used inside posts only) */
+  --b-cyan: #00D3F3; --b-black: #080808; --b-off: #F4F1EA; --b-amber: #F5A623; --b-lime: #C6F432; --b-verm: #FF5A1F; --b-pink: #FF4D94;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--desk); color: var(--ink); font: 15px/1.5 var(--text); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--saffron); outline-offset: 2px; }
+h1, h2, h3 { margin: 0; font-family: var(--display); letter-spacing: -0.02em; text-wrap: balance; }
+p { margin: 0; }
+
+.proto-bar { background: var(--saffron); color: var(--ink); font-size: 13px; font-weight: 600; text-align: center; padding-block: 6px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: calc(100% - 31px); }
+@media (max-width: 860px) { .app { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- sidebar ---------- */
+.side { background: var(--ink); color: #E9EAEE; padding: 20px 14px; display: flex; flex-direction: column; gap: 22px; position: sticky; top: 0; height: 100vh; }
+@media (max-width: 860px) { .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; padding-block: 12px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); } }
+.logo { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 800; font-size: 21px; letter-spacing: -0.03em; padding: 0 6px; }
+.logo svg { width: 28px; height: 28px; flex: none; }
+.side-label { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #8B90A0; padding: 0 8px 6px; }
+@media (max-width: 860px) { .side-label, .side-foot { display: none; } }
+.brand-pick { display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 860px) { .brand-pick { flex-direction: row; } }
+.brand-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px; padding: 8px; color: #C9CCD6; cursor: pointer; font-weight: 600; }
+.brand-btn:hover { background: #1E2027; color: #fff; }
+.brand-btn[aria-current="true"] { background: #23262F; color: #fff; }
+.brand-dot { width: 24px; height: 24px; border-radius: 7px; flex: none; display: grid; place-items: center; font-size: 12px; font-weight: 800; color: var(--b-black); }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 860px) { .nav { flex-direction: row; flex-wrap: wrap; margin-left: auto; } }
+.nav a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; color: #C9CCD6; text-decoration: none; font-weight: 600; }
+.nav a:hover { background: #1E2027; color: #fff; }
+.nav a[aria-current="page"] { background: var(--saffron); color: var(--ink); }
+.nav svg { width: 18px; height: 18px; flex: none; }
+.side-foot { margin-top: auto; background: #1A1C22; border-radius: 12px; padding: 12px; font-size: 12.5px; color: #B9BDC8; display: flex; flex-direction: column; gap: 6px; }
+.side-foot b { color: #fff; }
+.pulse { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #3DDC84; margin-right: 6px; box-shadow: 0 0 0 0 rgba(61,220,132,.6); animation: pulse 2s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(61,220,132,0); } 100% { box-shadow: 0 0 0 0 rgba(61,220,132,0); } }
+
+/* ---------- main ---------- */
+.main { min-width: 0; padding-block: 28px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+@media (min-width: 861px) { .main { padding-left: 40px; padding-right: 40px; } }
+.wrap { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 26px; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.mega { font-size: clamp(40px, 6vw, 72px); line-height: .95; font-weight: 800; letter-spacing: -0.045em; }
+.mega em { font-style: normal; background: var(--saffron); padding: 0 .12em; border-radius: .12em; }
+.head { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; justify-content: space-between; }
+.sub { color: var(--muted); font-size: 16px; max-width: 60ch; margin-top: 10px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 18px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--paper); font-weight: 700; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.btn:hover { border-color: var(--ink); }
+.btn-ink { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn-ink:hover { background: #2A2D36; }
+.btn-sun { background: var(--saffron); border-color: var(--saffron); color: var(--ink); }
+.btn-sun:hover { background: #F2A30F; border-color: #F2A30F; }
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn-ghost:hover { background: var(--paper); border-color: var(--line); }
+.btn-lg { min-height: 56px; padding: 14px 26px; font-size: 17px; border-radius: 14px; }
+.btn svg { width: 18px; height: 18px; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--desk); color: var(--muted); }
+.chip-sun { background: #FFF1D3; color: var(--saffron-ink); }
+.chip-ok { background: var(--ok-bg); color: var(--ok); }
+.chip-ink { background: var(--ink); color: #fff; }
+
+/* ---------- week ---------- */
+.week-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 1000px) { .week-strip { grid-template-columns: minmax(0, 1fr); } }
+.slot { background: var(--paper); border-radius: 20px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; border: 1.5px solid transparent; }
+.slot-empty { border: 2px dashed var(--line); background: transparent; min-height: 320px; justify-content: center; align-items: center; text-align: center; color: var(--muted); }
+.slot-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.slot-day { font-family: var(--display); font-weight: 800; font-size: 26px; letter-spacing: -0.03em; }
+.slot-day small { font-family: var(--text); font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+.slot h3 { font-size: 21px; line-height: 1.15; }
+.why { font-size: 14px; color: var(--muted); }
+.why b { color: var(--ink); }
+.src { display: flex; flex-wrap: wrap; gap: 6px; }
+.src span { font-size: 12px; font-weight: 600; padding: 3px 8px; border-radius: 6px; background: var(--desk); color: var(--muted); }
+.slot-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: auto; }
+.slot.ready { border-color: var(--ok); }
+
+.plan-hero { background: var(--ink); color: #fff; border-radius: 28px; padding: clamp(24px, 4vw, 44px); display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 32px; align-items: center; overflow: hidden; position: relative; }
+@media (max-width: 900px) { .plan-hero { grid-template-columns: minmax(0, 1fr); } }
+.plan-hero h2 { font-size: clamp(30px, 4vw, 48px); line-height: 1; font-weight: 800; letter-spacing: -0.04em; }
+.plan-hero p { color: #B9BDC8; font-size: 16px; margin-top: 12px; max-width: 46ch; }
+.plan-hero .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.thread { position: absolute; right: -40px; top: -20px; width: 420px; opacity: .9; pointer-events: none; }
+@media (max-width: 900px) { .thread { display: none; } }
+.steps { display: flex; flex-direction: column; gap: 10px; position: relative; z-index: 1; }
+.step { display: flex; gap: 12px; align-items: center; background: #1B1D24; border-radius: 14px; padding: 12px 14px; font-weight: 600; color: #8B90A0; transition: color .3s, background .3s; }
+.step .tick { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #3A3E4A; display: grid; place-items: center; flex: none; }
+.step.on { color: #fff; }
+.step.on .tick { border-color: var(--saffron); border-top-color: transparent; animation: spin .8s linear infinite; }
+.step.done { color: #fff; }
+.step.done .tick { background: var(--saffron); border-color: var(--saffron); animation: none; }
+.step.done .tick::after { content: ""; width: 9px; height: 5px; border-left: 2.5px solid var(--ink); border-bottom: 2.5px solid var(--ink); transform: rotate(-45deg) translate(1px, -1px); }
+.step small { display: block; font-weight: 500; color: #8B90A0; font-size: 12.5px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat { background: var(--paper); border-radius: 14px; padding: 10px 16px; font-size: 14px; color: var(--muted); }
+.stat b { font-family: var(--display); font-size: 22px; color: var(--ink); margin-right: 6px; font-variant-numeric: tabular-nums; }
+
+/* ---------- post frames ---------- */
+.frame { position: relative; width: 100%; aspect-ratio: 4 / 5; border-radius: 14px; overflow: hidden; background: var(--b-black); max-width: 100%; }
+.frame > .scale { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; transform-origin: 0 0; }
+.vid-badge { position: absolute; z-index: 3; right: 10px; top: 10px; background: rgba(0,0,0,.72); color: #fff; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; display: flex; align-items: center; gap: 5px; }
+.vid-badge::before { content: ""; width: 0; height: 0; border-left: 7px solid #fff; border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; }
+
+/* ---------- picker ---------- */
+.picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+@media (max-width: 900px) { .picker { grid-template-columns: minmax(0, 1fr); max-width: 440px; } }
+.option { background: var(--paper); border-radius: 22px; padding: 14px; display: flex; flex-direction: column; gap: 12px; border: 2px solid transparent; cursor: pointer; text-align: left; transition: transform .15s, border-color .15s; }
+.option:hover { transform: translateY(-3px); border-color: var(--ink); }
+.option-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 4px 4px; }
+.option-meta h3 { font-size: 18px; }
+.option-meta p { font-size: 13px; color: var(--muted); }
+.letter { width: 34px; height: 34px; border-radius: 10px; background: var(--ink); color: #fff; display: grid; place-items: center; font-family: var(--display); font-weight: 800; flex: none; }
+
+/* ---------- refine ---------- */
+.studio { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 400px); gap: 26px; align-items: start; }
+@media (max-width: 1000px) { .studio { grid-template-columns: minmax(0, 1fr); } }
+.canvas-desk { background: repeating-conic-gradient(#E6E8EC 0% 25%, #EEF0F3 0% 50%) 0 0 / 28px 28px; border-radius: 24px; padding: clamp(16px, 4vw, 44px); display: flex; justify-content: center; }
+.canvas-desk .frame { max-width: 500px; box-shadow: 0 24px 60px rgba(17,18,22,.22); }
+.panel { background: var(--paper); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.tabs { display: flex; gap: 4px; background: var(--desk); padding: 4px; border-radius: 12px; }
+.tabs button { flex: 1; border: 0; background: transparent; padding: 8px 10px; border-radius: 9px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--paper); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.chat { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; }
+.msg { padding: 10px 14px; border-radius: 16px; font-size: 14px; max-width: 90%; }
+.msg.me { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+.msg.ai { align-self: flex-start; background: var(--desk); border-bottom-left-radius: 4px; }
+.suggest { display: flex; gap: 6px; flex-wrap: wrap; }
+.suggest button { border: 1.5px solid var(--line); background: var(--paper); border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.suggest button:hover { border-color: var(--ink); }
+.composer { display: flex; gap: 8px; }
+.composer input { flex: 1; min-width: 0; font: 15px var(--text); padding: 11px 14px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--paper); color: var(--ink); }
+.caption { white-space: pre-wrap; font-size: 14px; line-height: 1.55; background: var(--desk); border-radius: 14px; padding: 14px; max-height: 260px; overflow-y: auto; }
+.channels { display: flex; gap: 8px; align-items: center; }
+.ch { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 800; }
+.ch-in { background: #0A66C2; } .ch-ig { background: linear-gradient(45deg, #F58529, #DD2A7B 55%, #8134AF); }
+.studio-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+
+/* ---------- queue ---------- */
+.day-group { display: flex; flex-direction: column; gap: 10px; }
+.day-group h2 { font-size: 22px; }
+.q-item { background: var(--paper); border-radius: 18px; padding: 14px; display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 18px; align-items: center; }
+@media (max-width: 640px) { .q-item { grid-template-columns: 80px minmax(0, 1fr); } .q-item .q-right { grid-column: 1 / -1; } }
+.q-time { font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--muted); }
+.q-item p { font-size: 14px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.q-right { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+
+/* ---------- library ---------- */
+.lib { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: 16px; }
+.gen { display: flex; gap: 10px; background: var(--paper); border-radius: 18px; padding: 12px; flex-wrap: wrap; }
+.gen input { flex: 1; min-width: 200px; font: 15px var(--text); padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--line); color: var(--ink); background: var(--paper); }
+
+/* ---------- setup wizard ---------- */
+.wizard { background: var(--paper); border-radius: 28px; padding: clamp(20px, 4vw, 40px); display: flex; flex-direction: column; gap: 22px; max-width: 860px; }
+.wiz-steps { display: flex; gap: 8px; }
+.wiz-steps span { flex: 1; height: 6px; border-radius: 3px; background: var(--desk); }
+.wiz-steps span.on { background: var(--ink); }
+.paste { width: 100%; min-height: 150px; font: 15px/1.5 var(--text); padding: 14px; border-radius: 14px; border: 1.5px solid var(--line); resize: vertical; color: var(--ink); background: var(--paper); }
+.learned { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 700px) { .learned { grid-template-columns: minmax(0, 1fr); } }
+.learned > div { background: var(--desk); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.learned h3 { font-size: 15px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags span { background: var(--paper); border-radius: 8px; padding: 5px 9px; font-size: 13px; font-weight: 600; }
+.swatchrow { display: flex; gap: 10px; flex-wrap: wrap; }
+.sw { display: flex; flex-direction: column; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.sw i { display: block; width: 72px; height: 72px; border-radius: 16px; border: 1px solid rgba(0,0,0,.08); }
+
+.toast { position: fixed; z-index: 50; left: 50%; transform: translateX(-50%); bottom: calc(22px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 12px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+
+/* =========================================================
+   POST DESIGNS (authored at 1080×1350, Beamer brand kit)
+   ========================================================= */
+.pd { position: absolute; inset: 0; font-family: "Poppins", sans-serif; overflow: hidden; }
+.pd .foot { position: absolute; left: 64px; right: 64px; bottom: 54px; display: flex; justify-content: space-between; align-items: center; font-size: 26px; font-weight: 500; }
+.bm { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 38px; letter-spacing: -1px; }
+.bm i { width: 22px; height: 34px; position: relative; display: inline-block; }
+.bm i::before { content: ""; position: absolute; left: 0; top: 0; width: 8px; height: 34px; background: currentColor; border-radius: 2px; }
+.bm i::after { content: ""; position: absolute; left: 8px; top: 13px; width: 14px; height: 21px; background: currentColor; border-radius: 0 12px 12px 0; }
+
+/* 1A ticket */
+.t1a { background: var(--b-cyan); color: var(--b-black); }
+.t1a .tk { position: absolute; left: 64px; right: 64px; top: 120px; height: 860px; background: var(--b-black); color: #fff; border-radius: 36px; display: grid; grid-template-rows: 1fr auto; overflow: hidden; }
+.t1a .tk::before, .t1a .tk::after { content: ""; position: absolute; width: 72px; height: 72px; border-radius: 50%; background: var(--b-cyan); top: 594px; }
+.t1a .tk::before { left: -36px; } .t1a .tk::after { right: -36px; }
+.t1a .tk-top { padding: 56px; display: flex; flex-direction: column; gap: 22px; }
+.t1a .admit { font-size: 26px; font-weight: 700; letter-spacing: 8px; color: var(--b-cyan); }
+.t1a h1 { margin: 0; font-size: 116px; line-height: .95; font-weight: 800; letter-spacing: -4px; }
+.t1a .perf { border-top: 6px dashed #2A2A2A; margin: 0 56px; }
+.t1a .tk-bot { padding: 40px 56px 50px; display: flex; justify-content: space-between; align-items: center; gap: 30px; }
+.t1a .tk-bot div { font-size: 30px; line-height: 1.3; }
+.t1a .tk-bot b { display: block; font-size: 40px; color: var(--b-lime); }
+.qr { width: 190px; height: 190px; background: #fff; border-radius: 14px; padding: 14px; display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; flex: none; }
+.qr span { background: var(--b-black); border-radius: 2px; }
+.qr span.o { background: transparent; }
+.t1a .tag { position: absolute; left: 64px; top: 1010px; font-size: 44px; font-weight: 700; line-height: 1.15; max-width: 900px; }
+
+/* 1B night route */
+.t1b { background: #05070C; color: #fff; }
+.t1b svg.map { position: absolute; inset: 0; }
+.t1b .k { position: absolute; left: 64px; top: 64px; font-size: 24px; letter-spacing: 6px; font-weight: 700; color: var(--b-cyan); }
+.t1b h1 { position: absolute; left: 64px; right: 64px; bottom: 200px; margin: 0; font-size: 128px; line-height: .95; font-weight: 800; letter-spacing: -4px; }
+.t1b h1 span { color: var(--b-cyan); }
+.t1b .pin { position: absolute; font-size: 22px; font-weight: 600; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.18); border-radius: 999px; padding: 8px 16px; display: flex; gap: 10px; align-items: center; }
+.t1b .pin i { width: 14px; height: 14px; border-radius: 50%; display: block; }
+
+/* 1C poster */
+.t1c { background: var(--b-off); color: var(--b-black); }
+.t1c .blk { position: absolute; }
+.t1c h1 { position: absolute; left: 50px; top: 90px; margin: 0; font-size: 300px; line-height: .8; font-weight: 900; letter-spacing: -16px; }
+.t1c .on { position: absolute; left: 64px; top: 820px; font-size: 76px; line-height: 1; font-weight: 700; letter-spacing: -2px; }
+.t1c .on span { background: var(--b-cyan); padding: 0 14px; border-radius: 14px; }
+.t1c .small { position: absolute; left: 64px; top: 1030px; font-size: 30px; color: #4A4A4A; max-width: 700px; line-height: 1.35; }
+
+/* 2A receipt */
+.t2a { background: var(--b-amber); color: var(--b-black); }
+.t2a .rc { position: absolute; left: 170px; right: 170px; top: 70px; height: 1000px; background: #FFFDF7; padding: 52px 50px; font-family: "JetBrains Mono", monospace; box-shadow: 0 30px 60px rgba(0,0,0,.18); }
+.t2a .rc::after { content: ""; position: absolute; left: 0; right: 0; bottom: -24px; height: 24px; background: linear-gradient(-45deg, transparent 16px, #FFFDF7 0) 0 0 / 32px 24px, linear-gradient(45deg, transparent 16px, #FFFDF7 0) 0 0 / 32px 24px; }
+.t2a .rc h4 { margin: 0 0 6px; font-size: 30px; text-align: center; letter-spacing: 4px; }
+.t2a .rc .c { text-align: center; font-size: 20px; color: #6B6B6B; margin-bottom: 26px; }
+.t2a .line { display: flex; justify-content: space-between; font-size: 24px; padding: 9px 0; border-bottom: 2px dashed #DDD6C6; }
+.t2a .tot { display: flex; justify-content: space-between; font-size: 34px; font-weight: 700; padding-top: 22px; }
+.t2a .ex { position: absolute; right: 50px; top: 52px; font-size: 16px; color: #8B8B8B; font-family: "Poppins", sans-serif; }
+.t2a h1 { position: absolute; left: 64px; right: 64px; top: 1110px; margin: 0; font-size: 84px; line-height: 1; font-weight: 800; letter-spacing: -3px; text-align: center; }
+
+/* 2B split (video) */
+.t2b { background: var(--b-black); color: #fff; }
+.t2b .top { position: absolute; left: 0; right: 0; top: 0; height: 720px; background: #0E1A1C; overflow: hidden; }
+.t2b .ring { position: absolute; left: 540px; top: 380px; width: 0; height: 0; }
+.t2b .ring i { position: absolute; left: -180px; top: -180px; width: 360px; height: 360px; border-radius: 50%; border: 4px solid var(--b-cyan); animation: ring 2.4s ease-out infinite; opacity: 0; }
+.t2b .ring i:nth-child(2) { animation-delay: .8s; } .t2b .ring i:nth-child(3) { animation-delay: 1.6s; }
+@keyframes ring { 0% { transform: scale(.2); opacity: .9; } 100% { transform: scale(1.4); opacity: 0; } }
+.t2b .dotc { position: absolute; left: 512px; top: 352px; width: 56px; height: 56px; border-radius: 50%; background: var(--b-cyan); box-shadow: 0 0 60px var(--b-cyan); }
+.t2b .lbl { position: absolute; left: 600px; top: 320px; font-size: 30px; font-weight: 700; }
+.t2b .clock { position: absolute; right: 60px; top: 60px; font-family: "JetBrains Mono", monospace; font-size: 40px; font-weight: 700; background: rgba(0,0,0,.55); padding: 12px 22px; border-radius: 14px; color: var(--b-lime); }
+.t2b h1 { position: absolute; left: 64px; right: 64px; top: 780px; margin: 0; font-size: 128px; line-height: .95; font-weight: 800; letter-spacing: -5px; }
+.t2b h1 span { color: var(--b-cyan); }
+
+/* 2C clock */
+.t2c { background: var(--b-cyan); color: var(--b-black); }
+.t2c .face { position: absolute; left: 140px; top: 110px; width: 800px; height: 800px; border-radius: 50%; background: var(--b-black); }
+.t2c .face i { position: absolute; left: 50%; top: 50%; width: 8px; height: 40px; background: #3A3A3A; margin: -400px 0 0 -4px; transform-origin: 4px 400px; border-radius: 4px; }
+.t2c .hand { position: absolute; left: 50%; top: 50%; background: #fff; border-radius: 10px; transform-origin: 50% 100%; }
+.t2c .h { width: 22px; height: 230px; margin: -230px 0 0 -11px; transform: rotate(180deg); }
+.t2c .m { width: 14px; height: 330px; margin: -330px 0 0 -7px; background: var(--b-amber); transform: rotate(0deg); }
+.t2c .ctr { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: var(--b-amber); }
+.t2c .six { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); color: #fff; font-size: 64px; font-weight: 800; }
+.t2c h1 { position: absolute; left: 64px; right: 64px; top: 960px; margin: 0; font-size: 104px; line-height: .98; font-weight: 800; letter-spacing: -4px; }
+
+/* 3A departures board */
+.t3a { background: #0B0C10; color: #fff; }
+.t3a .k { position: absolute; left: 64px; top: 70px; font-size: 26px; letter-spacing: 6px; font-weight: 700; color: var(--b-amber); }
+.t3a .board { position: absolute; left: 64px; right: 64px; top: 140px; display: flex; flex-direction: column; gap: 10px; }
+.t3a .row { display: grid; grid-template-columns: 170px 1fr 250px; gap: 10px; }
+.t3a .cell { background: #1B1D23; border-radius: 8px; padding: 14px 16px; font-family: "JetBrains Mono", monospace; font-size: 32px; white-space: nowrap; font-weight: 700; color: #F2F2F2; position: relative; overflow: hidden; }
+.t3a .cell::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #0B0C10; }
+.t3a .hd .cell { background: transparent; font-size: 20px; color: #8D919C; padding: 6px 16px; }
+.t3a .hd .cell::after { display: none; }
+.t3a .st { color: var(--b-lime); font-size: 28px; }
+.t3a h1 { position: absolute; left: 64px; right: 64px; top: 820px; margin: 0; font-size: 118px; line-height: .95; font-weight: 800; letter-spacing: -4px; }
+.t3a h1 span { color: var(--b-cyan); }
+
+/* 3B two frames */
+.t3b { background: var(--b-off); color: var(--b-black); }
+.t3b .pan { position: absolute; top: 64px; height: 720px; border-radius: 30px; overflow: hidden; }
+.t3b .p1 { left: 64px; width: 560px; }
+.t3b .p2 { left: 644px; width: 372px; }
+.t3b .num { position: absolute; left: 22px; top: 22px; width: 56px; height: 56px; border-radius: 50%; background: var(--b-black); color: #fff; display: grid; place-items: center; font-size: 28px; font-weight: 800; z-index: 2; }
+.t3b h1 { position: absolute; left: 64px; right: 64px; top: 840px; margin: 0; font-size: 104px; line-height: .98; font-weight: 800; letter-spacing: -4px; }
+.t3b h1 span { background: var(--b-cyan); padding: 0 12px; border-radius: 14px; }
+
+/* 3C editorial */
+.t3c { background: var(--b-black); color: #fff; }
+.t3c .big { position: absolute; left: 40px; top: 30px; font-size: 640px; line-height: .8; font-weight: 900; letter-spacing: -40px; color: var(--b-cyan); }
+.t3c .tx { position: absolute; left: 520px; top: 130px; right: 64px; font-size: 60px; line-height: 1.05; font-weight: 700; letter-spacing: -2px; }
+.t3c .rule { position: absolute; left: 64px; right: 64px; top: 640px; height: 4px; background: #2A2A2A; }
+.t3c .cols { position: absolute; left: 64px; right: 64px; top: 690px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+.t3c .cols div { font-size: 30px; line-height: 1.35; color: #CFCFCF; }
+.t3c .cols b { display: block; font-size: 38px; color: #fff; margin-bottom: 8px; }
+.t3c .cols i { display: inline-block; width: 22px; height: 22px; border-radius: 6px; margin-right: 12px; vertical-align: -2px; }
+.t3c .cta { position: absolute; left: 64px; top: 1010px; font-size: 40px; font-weight: 700; color: var(--b-lime); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="proto-bar">Prototype: clicks are simulated with Beamer examples. Nothing here is saved or posted.</div>
+<div class="app">
+  <aside class="side" aria-label="Brandloom">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#FFB020"/><path d="M8 8v16M14 8v16M20 8v16M26 8v16" stroke="#111216" stroke-width="2" stroke-linecap="round" opacity=".35"/><path d="M4 13c5 0 6 7 12 7s7-7 12-7" fill="none" stroke="#111216" stroke-width="3.2" stroke-linecap="round"/></svg>
+      Brandloom
+    </div>
+    <div>
+      <div class="side-label">Brands</div>
+      <div class="brand-pick">
+        <button class="brand-btn" type="button" aria-current="true"><span class="brand-dot" style="background:#00D3F3">B</span>Beamer</button>
+        <button class="brand-btn" type="button" data-go="setup"><span class="brand-dot" style="background:#2A2D36;color:#fff">+</span>Add a brand</button>
+      </div>
+    </div>
+    <nav class="nav" aria-label="Sections">
+      <div class="side-label">Beamer</div>
+      <a href="#week" data-nav="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>This week</a>
+      <a href="#queue" data-nav="queue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Queue</a>
+      <a href="#library" data-nav="library"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>Photos &amp; clips</a>
+      <a href="#setup" data-nav="setup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Brand kit</a>
+    </nav>
+    <div class="side-foot">
+      <span><span class="pulse" aria-hidden="true"></span><b>Trend radar is on</b></span>
+      <span>Claude checks the news, events and competitors for Beamer every morning.</span>
+    </div>
+  </aside>
+
+  <main class="main" id="main" tabindex="-1"></main>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Example content: Beamer, week of Monday 30 November 2026.
+const POSTS = [
+  {
+    id: 1, day: "Mon", date: "30 Nov", time: "09:30", pillar: "Timely", format: "Image",
+    title: "Detty December: be on the road to every show",
+    why: "Lagos's December events season starts this weekend. Promoters are booking media now, and Event Burst ties screens to the routes into each venue.",
+    sources: ["Lagos events calendar", "Pulse Nigeria", "Beamer brand kit"],
+    designs: ["t1a", "t1b", "t1c"],
+    names: [["Ticket", "A gig ticket with a QR code, in Beamer cyan"], ["Night route", "A glowing map of the routes into December venues"], ["Poster", "Big stacked type, like a festival poster"]],
+    li: "December in Lagos runs on events. The crowd is on the road before every show, and that is where your brand can meet them.\n\nEvent Burst is a short Beamer Motion campaign timed to your event: taxi-top screens on the routes to the venue, in the hours that matter, with a QR code that goes straight to tickets.\n\nEvery play is logged with time and GPS location.\n\nPromoting a show this December? Book a planning call at beamerads.com.",
+    ig: "The crowd is on the road before every show. Be there with them.\n\nEvent Burst puts your event on Beamer Motion screens across Lagos, timed to the night, with a QR code straight to tickets.\n\n#DettyDecember #Lagos #OOH #EventMarketing #DigitalOOH",
+  },
+  {
+    id: 2, day: "Wed", date: "2 Dec", time: "12:00", pillar: "Proof", format: "Video",
+    title: "Only in Lekki. Only at 6pm.",
+    why: "Brand managers are writing 2027 plans and asking how outdoor is measured. Geo-targeting with a play log answers it in one picture.",
+    sources: ["LinkedIn: 2027 media planning posts", "Beamer brand kit"],
+    designs: ["t2a", "t2b", "t2c"],
+    names: [["Play-log receipt", "Every play itemised, like a till receipt"], ["Live map", "A pulsing pin over Lekki, animated 9 s"], ["6 o'clock", "A giant clock face set to rush hour"]],
+    li: "Most outdoor is bought by the month and by the board. Beamer Motion lets you buy by the place and the hour.\n\nWant your ad only in Lekki, only between 6pm and 9pm? Set the areas and time slots, and the screens play your ad only when they are there.\n\nWhen the campaign ends you get the play log and a heatmap of where it ran.\n\nBook a planning call at beamerads.com.",
+    ig: "Only in Lekki. Only at 6pm.\n\nBeamer Motion screens play your ad in the areas and hours you choose, and log every play.\n\n#Lagos #Lekki #DigitalOOH #OOH #GeoTargeting",
+  },
+  {
+    id: 3, day: "Fri", date: "4 Dec", time: "10:00", pillar: "Inventory", format: "Image",
+    title: "Land, see it, see it again: Arrival to City",
+    why: "December is the biggest month for diaspora arrivals. Real-estate developers and banks want to reach travellers the moment they land.",
+    sources: ["Airport passenger trends", "Real-estate marketing news", "Beamer brand kit"],
+    designs: ["t3a", "t3b", "t3c"],
+    names: [["Arrivals board", "Split-flap board listing six airports"], ["Two moments", "The arrivals hall, then the ride into town"], ["Editorial", "One big number with two short columns"]],
+    li: "Your customer lands in Lagos and sees your brand in arrivals. Then they see it again on the road into the city.\n\nArrival to City pairs airport placements with Beamer Motion screens: one campaign, one booking, one report.\n\nPlanning for the December return? Request the media kit at beamerads.com.",
+    ig: "Land. See it. See it again.\n\nAirport screens plus Beamer Motion on the road into town. One booking, one report.\n\n#Lagos #AirportAdvertising #OOH #DettyDecember #NigeriaMarketing",
+  },
+];
+
+// Post designs. Each returns HTML authored at 1080×1350.
+const foot = (dark) => `<div class="foot" style="color:${dark ? "#fff" : "#080808"}"><span class="bm"><i></i>beamer</span><span style="opacity:.7">beamerads.com</span></div>`;
+const qr = () => { const on = [0,1,2,4,6,7,8,9,11,13,15,17,18,19,20,22,24,25,26,30,31,33,36,38,40,41,43,45,47,49,52,54,55,56,58,60,61,62,63,65,67,69,70,72,73,74,76,78,80]; return `<div class="qr" aria-hidden="true">${Array.from({ length: 81 }, (_, i) => `<span class="${on.includes(i) ? "" : "o"}"></span>`).join("")}</div>`; };
+const D = {
+  t1a: () => `<div class="pd t1a"><div class="tk"><div class="tk-top"><div class="admit">ADMIT YOUR BRAND</div><h1>Be on the road to every show.</h1></div><div><div class="perf"></div><div class="tk-bot"><div><b>Event Burst</b>Beamer Motion screens<br>1–31 December · Lagos</div>${qr()}</div></div></div><div class="tag">Screens on the routes into every December venue.</div>${foot(false)}</div>`,
+  t1b: () => `<div class="pd t1b"><svg class="map" viewBox="0 0 1080 1350" aria-hidden="true"><defs><filter id="g"><feGaussianBlur stdDeviation="8"/></filter></defs><g stroke="#16202B" stroke-width="2">${Array.from({ length: 18 }, (_, i) => `<path d="M0 ${i * 80} L1080 ${i * 80 + 120}" fill="none"/>`).join("")}</g><path d="M80 300 C300 340 420 520 560 520 S820 420 1000 520" stroke="#00D3F3" stroke-width="14" fill="none" filter="url(#g)" opacity=".7"/><path d="M80 300 C300 340 420 520 560 520 S820 420 1000 520" stroke="#00D3F3" stroke-width="6" fill="none"/><path d="M150 760 C330 700 480 600 560 520" stroke="#FF4D94" stroke-width="6" fill="none"/><path d="M560 520 C640 640 760 700 960 720" stroke="#C6F432" stroke-width="6" fill="none"/><circle cx="560" cy="520" r="18" fill="#fff"/></svg><div class="k">DETTY DECEMBER</div><div class="pin" style="left:420px;top:440px"><i style="background:#fff"></i>Eko Hotel</div><div class="pin" style="left:760px;top:650px"><i style="background:#C6F432"></i>Landmark Beach</div><div class="pin" style="left:120px;top:690px"><i style="background:#FF4D94"></i>Tafawa Balewa Sq.</div><h1>Every show. <span>Every route.</span></h1>${foot(true)}</div>`,
+  t1c: () => `<div class="pd t1c"><div class="blk" style="right:64px;top:90px;width:200px;height:200px;border-radius:50%;background:var(--b-pink)"></div><div class="blk" style="right:64px;top:320px;width:200px;height:380px;border-radius:30px;background:var(--b-lime)"></div><h1>DETTY<br>DEC</h1><div class="on">Your brand<br><span>on every road.</span></div><div class="small">Event Burst: Beamer Motion screens timed to the night, with a QR code straight to tickets.</div>${foot(false)}</div>`,
+  t2a: () => `<div class="pd t2a"><div class="rc"><span class="ex">Example</span><h4>PLAY LOG</h4><div class="c">Campaign 0142 · Beamer Motion</div>${[["18:00:12","Lekki Ph 1","✓"],["18:02:41","Admiralty Way","✓"],["18:07:03","Chevron Dr","✓"],["18:11:58","Lekki Ph 1","✓"],["18:16:20","Admiralty Way","✓"],["18:21:44","Ikate","✓"],["18:25:09","Lekki Ph 1","✓"],["…","",""]].map(r => `<div class="line"><span>${r[0]}</span><span>${r[1]}</span><span>${r[2]}</span></div>`).join("")}<div class="tot"><span>PLAYS</span><span>312</span></div><div class="line" style="border:0"><span>Area</span><span>Lekki only</span></div><div class="line" style="border:0"><span>Hours</span><span>18:00–21:00</span></div></div><h1>Only in Lekki. Only at 6pm.</h1>${foot(false)}</div>`,
+  t2b: () => `<div class="pd t2b"><div class="top"><svg viewBox="0 0 1080 720" width="1080" height="720" aria-hidden="true"><g stroke="#1D3236" stroke-width="3" fill="none"><path d="M0 200 L1080 120"/><path d="M0 420 L1080 360"/><path d="M200 0 L320 720"/><path d="M700 0 L620 720"/><path d="M0 600 C300 520 700 640 1080 560"/></g><text x="80" y="160" fill="#3F6268" font-size="26" font-family="Poppins">Victoria Island</text><text x="760" y="640" fill="#3F6268" font-size="26" font-family="Poppins">Ajah</text></svg><div class="ring"><i></i><i></i><i></i></div><div class="dotc"></div><div class="lbl">Lekki</div><div class="clock">18:00</div></div><h1>Only in <span>Lekki.</span><br>Only at <span>6pm.</span></h1>${foot(true)}</div>`,
+  t2c: () => `<div class="pd t2c"><div class="face">${Array.from({ length: 12 }, (_, i) => `<i style="transform:rotate(${i * 30}deg)"></i>`).join("")}<div class="hand h"></div><div class="hand m"></div><div class="ctr"></div><div class="six">6</div></div><h1>Your ad. Your place.<br>Your hour.</h1>${foot(false)}</div>`,
+  t3a: () => `<div class="pd t3a"><div class="k">ARRIVALS · DECEMBER</div><div class="board"><div class="row hd"><div class="cell">FROM</div><div class="cell">AIRPORT</div><div class="cell">STATUS</div></div>${[["LHR","LAGOS"],["IAH","ABUJA"],["DXB","PORT H"],["JFK","ENUGU"],["ATL","OWERRI"],["LGW","CALABAR"]].map(r => `<div class="row"><div class="cell">${r[0]}</div><div class="cell">${r[1]}</div><div class="cell st">ON SCREEN</div></div>`).join("")}</div><h1>They land.<br>Your brand is <span>there.</span></h1>${foot(true)}</div>`,
+  t3b: () => `<div class="pd t3b"><div class="pan p1"><span class="num">1</span><svg viewBox="0 0 560 720" width="560" height="720" aria-hidden="true"><rect width="560" height="720" fill="#1B2430"/><rect y="520" width="560" height="200" fill="#2B3644"/><rect x="60" y="90" width="440" height="250" rx="14" fill="#00D3F3"/><rect x="60" y="90" width="440" height="250" rx="14" fill="url(#gl)" opacity=".35"/><text x="90" y="230" font-family="Poppins" font-weight="800" font-size="64" fill="#080808">YOUR AD</text><g fill="#0E141C"><rect x="70" y="420" width="44" height="180" rx="20"/><rect x="150" y="440" width="40" height="160" rx="18"/><rect x="380" y="410" width="46" height="190" rx="20"/><rect x="460" y="450" width="38" height="150" rx="18"/></g><rect x="200" y="540" width="70" height="56" rx="8" fill="#F5A623"/><defs><linearGradient id="gl" x1="0" x2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs></svg></div><div class="pan p2"><span class="num">2</span><svg viewBox="0 0 372 720" width="372" height="720" aria-hidden="true"><rect width="372" height="720" fill="#0D1016"/><circle cx="300" cy="120" r="60" fill="#F5A623" opacity=".35"/><rect y="470" width="372" height="250" fill="#1C2129"/><rect x="40" y="380" width="292" height="120" rx="30" fill="#E9E5DA"/><rect x="100" y="300" width="172" height="76" rx="10" fill="#00D3F3"/><text x="118" y="350" font-family="Poppins" font-weight="800" font-size="30" fill="#080808">YOUR AD</text><circle cx="100" cy="505" r="30" fill="#0A0A0A"/><circle cx="272" cy="505" r="30" fill="#0A0A0A"/></svg></div><h1>Land. <span>See it.</span><br>See it again.</h1>${foot(false)}</div>`,
+  t3c: () => `<div class="pd t3c"><div class="big">2</div><div class="tx">moments that matter in December: the arrivals hall, and the ride into town.</div><div class="rule"></div><div class="cols"><div><b><i style="background:var(--b-cyan)"></i>Airports</b>Screens in arrivals halls at six Nigerian airports.</div><div><b><i style="background:var(--b-amber)"></i>The road</b>Beamer Motion taxi screens on the routes into the city.</div></div><div class="cta">One booking. One report.</div>${foot(true)}</div>`,
+};
+
+// Alternate versions the chat "edits" switch to (simulated).
+const EDITS = {
+  "Shorter headline": { t1a: [["h1", "Every show. Your brand."]], t1b: [["h1", "Every <span>route.</span>"]], t1c: [[".on", "Your brand<br><span>everywhere.</span>"]], t2a: [["h1", "Lekki. 6pm. Proven."]], t2b: [["h1", "<span>Lekki.</span><br><span>6pm.</span>"]], t2c: [["h1", "Your hour."]], t3a: [["h1", "Land. <span>See us.</span>"]], t3b: [["h1", "<span>Land.</span> See it."]], t3c: [[".tx", "touchpoints. One booking."]] },
+  "Make it bolder": { "*": [["style", "filter: saturate(1.25) contrast(1.08)"]] },
+  "Try the lime accent": { "*": [["style", "--b-cyan: #C6F432"]] },
+};
+
+// ---------------------------------------------------------------------------
+const state = { planned: false, accepted: {}, chosen: {}, ready: {} };
+try { Object.assign(state, JSON.parse(localStorage.getItem("bl-proto") || "{}")); } catch {}
+const save = () => { try { localStorage.setItem("bl-proto", JSON.stringify(state)); } catch {} };
+const $ = (s, r = document) => r.querySelector(s);
+const main = $("#main");
+function toast(t) { const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (el.hidden = true), 2200); }
+
+function frame(designId, opts = {}) {
+  const video = designId === "t2b";
+  return `<div class="frame" data-design="${designId}">${video ? '<span class="vid-badge">9 s video</span>' : ""}<div class="scale">${D[designId]()}</div></div>`;
+}
+function fitFrames() {
+  document.querySelectorAll(".frame").forEach((f) => { const s = f.querySelector(".scale"); if (s) s.style.transform = `scale(${f.clientWidth / 1080})`; });
+}
+new ResizeObserver(fitFrames).observe(document.body);
+
+// ---------------------------------------------------------------------------
+const views = {
+  week() {
+    const readyCount = Object.values(state.ready).filter(Boolean).length;
+    if (!state.planned) {
+      return `<div class="wrap">
+        <div><div class="eyebrow">Beamer · Week of 30 November</div><h1 class="mega" style="margin-top:10px">This week is <em>empty.</em></h1></div>
+        <section class="plan-hero" id="plan-hero">
+          <div style="position:relative;z-index:1">
+            <h2>Plan the week in one click.</h2>
+            <p>Claude reads Beamer's brand kit, checks what's happening in Lagos and in outdoor advertising this week, looks at what you posted recently, and proposes three posts.</p>
+            <div class="row"><button class="btn btn-sun btn-lg" type="button" id="plan-btn">Plan my week</button><button class="btn btn-ghost btn-lg" type="button" style="color:#fff" data-go="setup">Check the brand kit first</button></div>
+          </div>
+          <div class="steps" id="steps" aria-live="polite">
+            ${[["Reading Beamer's brand kit", "Voice, pillars, colours, facts"], ["Searching the web", "Lagos events, airport travel, 2027 media plans"], ["Checking recent posts", "Avoiding repeats from the last 4 weeks"], ["Drafting 3 posts", "Mon, Wed, Fri for LinkedIn and Instagram"]].map(([a, b]) => `<div class="step"><span class="tick"></span><div>${a}<small>${b}</small></div></div>`).join("")}
+          </div>
+        </section>
+        <div class="week-strip">${POSTS.map((p) => `<div class="slot slot-empty"><div><div class="slot-day">${p.day}<small>${p.date}</small></div><p style="margin-top:6px">Empty slot</p></div></div>`).join("")}</div>
+      </div>`;
+    }
+    return `<div class="wrap">
+      <div class="head">
+        <div><div class="eyebrow">Beamer · Week of 30 November</div><h1 class="mega" style="margin-top:10px">${readyCount === 3 ? "Your week is <em>ready.</em>" : "Here's your <em>week.</em>"}</h1>
+        <p class="sub">${readyCount === 3 ? "All three posts are approved and queued for LinkedIn and Instagram." : "Three posts, planned from this week's news and Beamer's pillars. Accept one to pick its design."}</p></div>
+        <div class="stats"><div class="stat"><b>3</b>planned</div><div class="stat"><b>${readyCount}</b>ready</div><div class="stat"><b>2</b>channels</div></div>
+      </div>
+      <div class="week-strip">${POSTS.map((p) => {
+        const d = state.chosen[p.id];
+        const ready = state.ready[p.id];
+        return `<article class="slot ${ready ? "ready" : ""}">
+          <div class="slot-top"><span class="slot-day">${p.day}<small>${p.date} · ${p.time}</small></span>${ready ? '<span class="chip chip-ok">Ready</span>' : `<span class="chip ${p.format === "Video" ? "chip-ink" : ""}">${p.format}</span>`}</div>
+          ${d ? frame(d) : ""}
+          <span class="chip chip-sun" style="align-self:flex-start">${p.pillar}</span>
+          <h3>${p.title}</h3>
+          ${d ? "" : `<p class="why"><b>Why now:</b> ${p.why}</p><div class="src">${p.sources.map((s) => `<span>${s}</span>`).join("")}</div>`}
+          <div class="slot-actions">
+            ${ready ? `<button class="btn" type="button" data-refine="${p.id}">Open</button>` : d ? `<button class="btn btn-ink" type="button" data-refine="${p.id}">Continue editing</button>` : `<button class="btn btn-ink" type="button" data-pick="${p.id}">Choose a design</button><button class="btn btn-ghost" type="button" data-swap="${p.id}">Swap idea</button>`}
+          </div>
+        </article>`;
+      }).join("")}</div>
+      <p class="sub" style="margin-top:0"><button class="btn btn-ghost" type="button" id="reset">Start the prototype again</button></p>
+    </div>`;
+  },
+
+  pick(id) {
+    const p = POSTS.find((x) => x.id === +id);
+    return `<div class="wrap">
+      <div class="head"><div><button class="btn btn-ghost" type="button" data-go="week">← This week</button>
+        <div class="eyebrow" style="margin-top:14px">${p.day} ${p.date} · ${p.pillar}</div><h1 class="mega" style="margin-top:10px;font-size:clamp(34px,4.6vw,56px)">Pick a <em>direction.</em></h1>
+        <p class="sub">Three different designs for “${p.title}”, all in Beamer's colours and type. Choose the one closest to what you want; you can change anything next.</p></div>
+        <button class="btn" type="button" id="more">Show 3 more</button></div>
+      <div class="picker">${p.designs.map((d, i) => `<button class="option" type="button" data-choose="${p.id}:${d}">${frame(d)}<div class="option-meta"><span class="letter">${"ABC"[i]}</span><div style="flex:1"><h3>${p.names[i][0]}</h3><p>${p.names[i][1]}</p></div></div></button>`).join("")}</div>
+    </div>`;
+  },
+
+  refine(id) {
+    const p = POSTS.find((x) => x.id === +id);
+    const d = state.chosen[p.id] || p.designs[0];
+    return `<div class="wrap">
+      <div class="studio-bar">
+        <button class="btn btn-ghost" type="button" data-go="week">← This week</button>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn" type="button" data-pick="${p.id}">Other designs</button>
+          <button class="btn" type="button" id="download">${p.format === "Video" ? "Download MP4" : "Download PNG"}</button>
+          <button class="btn btn-sun" type="button" id="approve" data-id="${p.id}">${state.ready[p.id] ? "Approved" : "Approve and queue"}</button>
+        </div>
+      </div>
+      <div class="studio">
+        <div class="canvas-desk">${frame(d)}</div>
+        <div class="panel">
+          <div><div class="eyebrow">${p.day} ${p.date} · ${p.time}</div><h2 style="font-size:24px;margin-top:6px">${p.title}</h2></div>
+          <div class="tabs" role="tablist"><button role="tab" aria-selected="true" data-tab="chat">Edit with Claude</button><button role="tab" aria-selected="false" data-tab="caption">Captions</button></div>
+          <div id="tab-chat" class="stack" style="display:flex;flex-direction:column;gap:12px">
+            <div class="chat" id="chat"><div class="msg ai">This is the ${p.names[p.designs.indexOf(d)]?.[0] ?? "chosen"} design. Tell me what to change, or try one of these.</div></div>
+            <div class="suggest">${["Shorter headline", "Make it bolder", "Try the lime accent", "Use a real photo"].map((s) => `<button type="button" data-ask="${s}">${s}</button>`).join("")}</div>
+            <form class="composer" id="composer"><input id="ask" type="text" aria-label="Ask Claude to change the post" placeholder="e.g. mention Abuja airport"><button class="btn btn-ink" type="submit">Send</button></form>
+          </div>
+          <div id="tab-caption" hidden>
+            <div class="channels" style="margin-bottom:10px"><span class="ch ch-in" title="LinkedIn">in</span><span class="ch ch-ig" title="Instagram">IG</span><span class="chip" style="margin-left:auto">Captions written for each</span></div>
+            <div class="tabs" role="tablist" style="margin-bottom:10px"><button role="tab" aria-selected="true" data-cap="li">LinkedIn</button><button role="tab" aria-selected="false" data-cap="ig">Instagram</button></div>
+            <div class="caption" id="caption">${p.li}</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  },
+
+  queue() {
+    const items = POSTS.filter((p) => state.ready[p.id]);
+    return `<div class="wrap">
+      <div><div class="eyebrow">Beamer</div><h1 class="mega" style="margin-top:10px">The <em>queue.</em></h1><p class="sub">Approved posts, in the order they go out. Connect LinkedIn and Instagram to publish automatically, or download and post them yourself.</p></div>
+      ${items.length ? POSTS.map((p) => state.ready[p.id] ? `<section class="day-group"><h2>${p.day === "Mon" ? "Monday" : p.day === "Wed" ? "Wednesday" : "Friday"} ${p.date}</h2>
+        <div class="q-item"><div style="width:96px">${frame(state.chosen[p.id])}</div><div style="min-width:0"><div class="q-time">${p.time}</div><h3 style="font-size:18px;margin:4px 0">${p.title}</h3><p>${p.li.split("\n")[0]}</p></div>
+        <div class="q-right"><div class="channels"><span class="ch ch-in">in</span><span class="ch ch-ig">IG</span></div><button class="btn" type="button" data-refine="${p.id}">Edit</button></div></div></section>` : "").join("")
+      : `<div class="slot slot-empty" style="min-height:220px"><div><h3>Nothing queued yet</h3><p style="margin-top:6px">Approve a post on <a href="#week">This week</a> and it lands here.</p></div></div>`}
+    </div>`;
+  },
+
+  library() {
+    const tiles = [["Arrivals hall, Lagos", "t3b"], ["Taxi screen at dusk", "t1b"], ["Lekki at 6pm", "t2b"], ["Play-log receipt", "t2a"]];
+    return `<div class="wrap">
+      <div><div class="eyebrow">Beamer</div><h1 class="mega" style="margin-top:10px">Photos <em>&amp; clips.</em></h1><p class="sub">Your own footage makes the strongest posts. Upload it here, or describe a picture and Claude makes one in Beamer's art direction.</p></div>
+      <form class="gen" onsubmit="event.preventDefault(); toast('In the real app this generates an image in about 20 seconds.')"><input id="gen" type="text" aria-label="Describe an image" placeholder="A taxi with a glowing roof screen on Admiralty Way at dusk"><button class="btn btn-ink" type="submit">Generate</button><button class="btn" type="button" onclick="toast('In the real app this opens your files.')">Upload</button></form>
+      <div class="lib">${tiles.map(([n, d]) => `<div class="slot" style="padding:12px;gap:10px">${frame(d)}<b style="font-size:14px">${n}</b></div>`).join("")}</div>
+    </div>`;
+  },
+
+  setup(step = "1") {
+    const s = +step;
+    const bar = `<div class="wiz-steps" aria-label="Step ${s} of 3">${[1, 2, 3].map((i) => `<span class="${i <= s ? "on" : ""}"></span>`).join("")}</div>`;
+    let body = "";
+    if (s === 1) body = `<div><div class="eyebrow">Step 1 of 3</div><h1 class="mega" style="margin-top:10px;font-size:clamp(32px,4vw,52px)">Tell us about the <em>business.</em></h1><p class="sub">Paste a concept note, a pitch deck or your website. Claude does the rest.</p></div>
+      <textarea class="paste" id="paste" aria-label="About the business">Beamer is the modern way to buy outdoor advertising in Nigeria: airports and screens on the move, booked in one place, with proof that your ad ran…</textarea>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-ink btn-lg" type="button" data-wiz="2">Read it</button><button class="btn btn-lg" type="button" onclick="toast('In the real app you can paste a website address too.')">Use a website instead</button></div>`;
+    if (s === 2) body = `<div><div class="eyebrow">Step 2 of 3</div><h1 class="mega" style="margin-top:10px;font-size:clamp(32px,4vw,52px)">Here's what we <em>learned.</em></h1><p class="sub">Click anything to change it. Posts only ever use facts from this page.</p></div>
+      <div class="learned">
+        <div><h3>Voice</h3><div class="tags"><span>Plain</span><span>Confident</span><span>Specific</span><span>British spelling</span></div></div>
+        <div><h3>Audience</h3><div class="tags"><span>Bank &amp; telco brand managers</span><span>Agency planners</span><span>Real-estate sales heads</span></div></div>
+        <div><h3>Content pillars</h3><div class="tags"><span>The problem</span><span>Proof</span><span>Inventory</span><span>Timely</span><span>Buyer education</span></div></div>
+        <div><h3>Facts posts can use</h3><div class="tags"><span>6 airports</span><span>Every play logged with GPS</span><span>Geo-targeting by hour</span></div></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-ink btn-lg" type="button" data-wiz="3">Looks right</button><button class="btn btn-ghost btn-lg" type="button" data-wiz="1">Back</button></div>`;
+    if (s === 3) body = `<div><div class="eyebrow">Step 3 of 3</div><h1 class="mega" style="margin-top:10px;font-size:clamp(32px,4vw,52px)">Your <em>look.</em></h1><p class="sub">Taken from your logo and website. Drop in a logo file to replace it.</p></div>
+      <div class="swatchrow">${[["#00D3F3", "Lead"], ["#080808", "Dark"], ["#F4F1EA", "Light"], ["#F5A623", "Amber"], ["#C6F432", "Lime"], ["#FF5A1F", "Vermilion"], ["#FF4D94", "Pink"]].map(([c, n]) => `<div class="sw"><i style="background:${c}"></i>${n}</div>`).join("")}</div>
+      <div class="learned"><div><h3>Fonts</h3><p style="font-family:Poppins;font-weight:800;font-size:28px">Poppins</p></div><div><h3>Photo style</h3><p class="why">Documentary photography in Lagos and Nigerian airports, real people, evening light, no text in images.</p></div></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-sun btn-lg" type="button" data-go="week">Save and plan my first week</button><button class="btn btn-ghost btn-lg" type="button" data-wiz="2">Back</button></div>`;
+    return `<div class="wrap"><section class="wizard">${bar}${body}</section></div>`;
+  },
+};
+
+// ---------------------------------------------------------------------------
+function route() {
+  const [name, arg] = (location.hash.slice(1) || "week").split("-");
+  const view = views[name] ? name : "week";
+  main.innerHTML = views[view](arg);
+  document.querySelectorAll(".nav a").forEach((a) => a.setAttribute("aria-current", a.dataset.nav === view || (a.dataset.nav === "week" && (view === "pick" || view === "refine")) ? "page" : "false"));
+  requestAnimationFrame(fitFrames);
+  window.scrollTo({ top: 0 });
+}
+const go = (h) => { if (location.hash === "#" + h) route(); else location.hash = h; };
+window.addEventListener("hashchange", route);
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("button, a");
+  if (!t) return;
+  if (t.dataset.go) go(t.dataset.go);
+  if (t.dataset.pick) go("pick-" + t.dataset.pick);
+  if (t.dataset.refine) go("refine-" + t.dataset.refine);
+  if (t.dataset.wiz) go("setup-" + t.dataset.wiz);
+  if (t.dataset.swap) toast("In the real app Claude proposes a different idea for this slot.");
+  if (t.id === "more") toast("In the real app Claude designs three more directions.");
+  if (t.id === "reset") { state.planned = false; state.chosen = {}; state.ready = {}; save(); route(); }
+  if (t.dataset.choose) { const [id, d] = t.dataset.choose.split(":"); state.chosen[id] = d; save(); go("refine-" + id); }
+  if (t.id === "plan-btn") plan(t);
+  if (t.id === "approve") { state.ready[t.dataset.id] = true; save(); toast("Approved. Queued for LinkedIn and Instagram."); setTimeout(() => go("week"), 700); }
+  if (t.id === "download") toast("In the real app this downloads the finished file.");
+  if (t.dataset.tab) {
+    document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", String(b === t)));
+    $("#tab-chat").hidden = t.dataset.tab !== "chat"; $("#tab-caption").hidden = t.dataset.tab !== "caption";
+  }
+  if (t.dataset.cap) {
+    document.querySelectorAll("[data-cap]").forEach((b) => b.setAttribute("aria-selected", String(b === t)));
+    const id = (location.hash.split("-")[1]); const p = POSTS.find((x) => x.id === +id); $("#caption").textContent = p[t.dataset.cap];
+  }
+  if (t.dataset.ask) ask(t.dataset.ask);
+});
+document.addEventListener("submit", (e) => {
+  if (e.target.id !== "composer") return;
+  e.preventDefault();
+  const v = $("#ask").value.trim(); if (!v) return;
+  $("#ask").value = ""; ask(v);
+});
+
+function ask(text) {
+  const chat = $("#chat");
+  chat.insertAdjacentHTML("beforeend", `<div class="msg me"></div>`);
+  chat.lastElementChild.textContent = text;
+  const f = $(".canvas-desk .frame"); const d = f.dataset.design; const pd = f.querySelector(".pd");
+  const edits = EDITS[text]?.[d] || EDITS[text]?.["*"];
+  setTimeout(() => {
+    let reply = "Done. In the real app I'd rewrite the post for that; here's the idea.";
+    if (edits) {
+      edits.forEach(([sel, val]) => { if (sel === "style") pd.style.cssText += ";" + val; else { const el = pd.querySelector(sel); if (el) el.innerHTML = val; } });
+      reply = text === "Make it bolder" ? "Pushed the colour and contrast up." : text === "Try the lime accent" ? "Swapped cyan for Beamer's lime." : "Shortened it.";
+    } else if (text === "Use a real photo") reply = "In the real app I'd pick a matching photo from your library, or generate one in Beamer's photo style.";
+    chat.insertAdjacentHTML("beforeend", `<div class="msg ai">${reply}</div>`);
+    chat.scrollTop = chat.scrollHeight;
+  }, 500);
+}
+
+function plan(btn) {
+  btn.disabled = true; btn.textContent = "Planning…";
+  const steps = document.querySelectorAll("#steps .step");
+  steps.forEach((s, i) => {
+    setTimeout(() => { s.classList.add("on"); }, i * 900);
+    setTimeout(() => { s.classList.remove("on"); s.classList.add("done"); }, i * 900 + 850);
+  });
+  setTimeout(() => { state.planned = true; save(); route(); toast("Three posts planned for this week."); }, steps.length * 900 + 300);
+}
+
+route();
+</script>
