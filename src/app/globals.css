@@ -236,3 +236,4 @@ button.slot-add:hover:not(:disabled) { border-color: var(--accent); color: var(-
 .account .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-sched { background: var(--accent-soft); color: var(--accent-ink); }
 .chip-fail { background: #FDE8E8; color: #9B1C1C; }
+.target .handle { font-weight: 500; opacity: .8; }

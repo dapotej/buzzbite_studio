@@ -85,6 +85,13 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
     setBusy(null); router.push(`/b/${brand.id}`); router.refresh();
   }
   async function publish(opts: { now?: boolean } = {}) {
+    if (opts.now) {
+      const to = (p.publishing.targets ?? connected).map((x) => {
+        const a = brand.social.accounts.find((acc) => acc.platform === x);
+        return `${PLATFORM_NAMES[x]}: ${a?.name ?? ""}${a?.username ? ` (@${a.username})` : ""}`;
+      });
+      if (!window.confirm(`Post this now?\n\n${to.join("\n")}\n\nIt goes live straight away.`)) return;
+    }
     setBusy(opts.now ? "now" : "schedule"); setMessage("");
     try {
       if (!filesReady(brand, p)) await makePostFiles(brand, p, setPrep);
@@ -286,9 +293,15 @@ function PublishPanel({ brand, post: p, connected, busy, prep, onToggle, onPubli
     return <p className="small muted">To post automatically, connect Instagram or LinkedIn in the <Link href={`/b/${brand.id}/kit#accounts`}>Brand kit</Link>.</p>;
   }
   const pub = p.publishing;
+  const pct = prep !== null ? ` ${Math.round(prep * 100)}%` : "";
+  const handle = (x: Platform) => { const a = brand.social.accounts.find((acc) => acc.platform === x); return a ? (a.username ? `@${a.username}` : a.name) : ""; };
+  const nowBtn = (
+    <button className="btn" type="button" onClick={() => onPublish({ now: true })} disabled={busy !== null || p.status === "making"}>
+      {busy === "now" ? `Posting${pct}…` : "Post now"}
+    </button>
+  );
   const targets = pub.targets ?? connected;
   const working = busy === "schedule" || busy === "now";
-  const pct = prep !== null ? ` ${Math.round(prep * 100)}%` : "";
   const when = pub.scheduledFor ? `${fmt(pub.scheduledFor.slice(0, 10))} at ${pub.scheduledFor.slice(11, 16)}` : "";
   return (
     <div className="publish">
@@ -296,7 +309,7 @@ function PublishPanel({ brand, post: p, connected, busy, prep, onToggle, onPubli
         <span className="small" style={{ fontWeight: 600 }}>Post to</span>
         {connected.map((x) => (
           <button key={x} type="button" className="target" aria-pressed={targets.includes(x)} onClick={() => onToggle(x)} disabled={busy !== null || p.status === "posted"}>
-            {PLATFORM_NAMES[x]}
+            {PLATFORM_NAMES[x]}{handle(x) && <span className="handle"> {handle(x)}</span>}
           </button>
         ))}
       </div>
@@ -307,26 +320,33 @@ function PublishPanel({ brand, post: p, connected, busy, prep, onToggle, onPubli
           {pub.error && <span className="error"> {pub.error}</span>}
         </p>
       ) : p.status !== "approved" ? (
-        <p className="small muted">Approving schedules it for {fmt(p.publish_on)} at {brand.settings.time}.</p>
+        <div className="row" style={{ gap: 8 }}>
+          <span className="small muted" style={{ flex: 1 }}>Approving schedules it for {fmt(p.publish_on)} at {brand.settings.time}.</span>
+          {nowBtn}
+        </div>
       ) : pub.state === "failed" || pub.error ? (
         <div className="issue" role="alert">
           <span>{pub.error ?? "The post could not be published."}</span>
           <span className="row" style={{ gap: 6 }}>
             {!/passed/.test(pub.error ?? "") && <button className="btn" type="button" onClick={() => onPublish()} disabled={busy !== null}>{busy === "schedule" ? `Trying${pct}…` : "Try again"}</button>}
-            <button className="btn" type="button" onClick={() => onPublish({ now: true })} disabled={busy !== null}>{busy === "now" ? `Posting${pct}…` : "Post now"}</button>
+            {nowBtn}
           </span>
         </div>
       ) : pub.state === "scheduled" ? (
-        <p className="small">
-          Scheduled for {when}.{" "}
-          <button className="linklike" type="button" onClick={onUnapprove} disabled={busy !== null}>{busy === "unapprove" ? "Cancelling…" : "Cancel"}</button>
-        </p>
+        <div className="row" style={{ gap: 8 }}>
+          <span className="small" style={{ flex: 1 }}>
+            Scheduled for {when}.{" "}
+            <button className="linklike" type="button" onClick={onUnapprove} disabled={busy !== null}>{busy === "unapprove" ? "Cancelling…" : "Cancel"}</button>
+          </span>
+          {nowBtn}
+        </div>
       ) : pub.state === "publishing" ? (
         <p className="small">Posting now…</p>
       ) : (
         <div className="row" style={{ gap: 8 }}>
           <span className="small muted">Approved, not scheduled yet.</span>
           <button className="btn" type="button" onClick={() => onPublish()} disabled={busy !== null}>{working && busy === "schedule" ? `Scheduling${pct}…` : "Schedule"}</button>
+          {nowBtn}
         </div>
       )}
     </div>
