@@ -151,7 +151,7 @@ export const TEMPLATES: Record<TemplateId, { name: string; usesPhoto: boolean; v
   list: { name: "Checklist", usesPhoto: false, video: false, guide: "A headline and 3-4 numbered points. Good for how-tos and buyer education." },
   chat: { name: "Chat", usesPhoto: false, video: false, guide: "4-6 chat bubbles that dramatise the customer's problem, then a headline." },
   poster: { name: "Poster", usesPhoto: false, video: false, guide: "Huge 1-2 word title (big), bold colour shapes, a short line under it. Good for seasons and greetings." },
-  motion: { name: "Animated graphic", usesPhoto: false, video: true, guide: "Animated graphic: 2-3 lines appear, then an end card. Use rarely." },
+  motion: { name: "Route animation", usesPhoto: false, video: true, guide: "A line draws a route with a marker moving along it while 2-3 lines appear, then an end card. For journeys, routes, deliveries and step-by-step processes." },
   reel: { name: "Reel", usesPhoto: false, video: true, guide: "A vertical 9:16 video of 3-4 scenes, about 5 seconds each: every scene has its own photo animated into a clip, an on-screen caption and a voice-over line, with subtitles and background music. Best for stories, behind the scenes, launches, quick tips and anything worth narrating. Fill scenes and music; headline is the reel's title shown at the start." },
   carousel: { name: "Carousel", usesPhoto: true, video: false, guide: "5-8 swipeable slides: a cover that hooks, one point per slide, then a call-to-action slide. Best for how-tos, checklists, myths vs facts, step-by-step explainers and buyer education. The cover may use a photo (imagePrompt), or leave imagePrompt empty for a graphic cover." },
   quote: { name: "Quote", usesPhoto: false, video: false, guide: "A big pull quote with quotation marks and who said it (sub). For opinions, principles, customer words the brand has on record, or a line worth remembering." },
@@ -204,6 +204,7 @@ export const PostSpecSchema = z.object({
     )
     .describe("reel only: 3-4 scenes in order; the voice-over lines read as one script with a hook first and a call to action last. Empty for other templates."),
   music: z.string().describe("reel only: background music in a few words: genre, mood, tempo, instrumental. Empty for other templates."),
+  animated: z.boolean().describe("Graphic designs only (statement, stat, list, chat, poster, quote, versus, note, social): true to post it as a short animation where the words and shapes move in. False for photo, video, carousel, reel and motion."),
 });
 export type Slide = PostSpec["slides"][number];
 export const MediaRefSchema = z.object({ id: z.string(), url: z.string(), kind: z.enum(["image", "video"]) });
@@ -242,7 +243,10 @@ export type Post = {
 };
 
 /** True when the post exports as an MP4. */
-export const isVideoPost = (spec: PostSpec) => spec.template === "motion" || spec.template === "video" || spec.template === "reel";
+/** Graphic designs that can also go out as a short animation. */
+export const ANIMATABLE = new Set<TemplateId>(["statement", "stat", "list", "chat", "poster", "quote", "versus", "note", "social"]);
+export const isAnimated = (spec: PostSpec) => !!spec.animated && ANIMATABLE.has(spec.template);
+export const isVideoPost = (spec: PostSpec) => spec.template === "motion" || spec.template === "video" || spec.template === "reel" || isAnimated(spec);
 export const isReel = (spec: PostSpec) => spec.template === "reel";
 /** A reel is ready to play once every scene has its clip and voice-over. Music is optional. */
 export const reelReady = (spec: PostSpec) => isReel(spec) && !!spec.reel && spec.reel.scenes.length > 0 && spec.reel.scenes.every((x) => x.clip && x.voice);

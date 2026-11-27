@@ -8,7 +8,7 @@ import { exportReel } from "@/lib/reel";
 import { ScaledPost } from "./PostThumb";
 import { downloadBlob, exportMp4, exportPng, slidesPdf, slidesZip } from "@/lib/export";
 import { filesReady, makePostFiles } from "@/lib/deliver";
-import { PLATFORM_NAMES, PLATFORMS, isVideoPost, type Brand, type Platform, type Post, type PostSpec, isReel, reelReady } from "@/lib/types";
+import { ANIMATABLE, PLATFORM_NAMES, PLATFORMS, isVideoPost, type Brand, type Platform, type Post, type PostSpec, isReel, reelReady } from "@/lib/types";
 
 const fmt = (s: string | null) => (s ? new Date(s + "T12:00:00Z").toLocaleDateString("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }) : "No date");
 
@@ -301,6 +301,15 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
           <PublishPanel brand={brand} post={p} connected={connected} busy={busy} prep={prep} onToggle={toggleTarget} onPublish={publish} onUnapprove={unapprove} />
           <div className="quick">
             <button type="button" aria-pressed={editing} disabled={busy !== null || making} onClick={() => { setEditing(!editing); setPreview(null); }}>{editing ? "Close text editor" : "Edit text"}</button>
+            {ANIMATABLE.has(p.spec.template) && (
+              <button type="button" aria-pressed={!!p.spec.animated} disabled={busy !== null || making} onClick={async () => {
+                try {
+                  const saved = await patch({ spec: { ...p.spec, animated: !p.spec.animated } });
+                  setMessage(saved.spec.animated ? "Now an animation: it goes out as a short video." : "Now a still image.");
+                  router.refresh();
+                } catch (e) { setMessage(e instanceof Error ? e.message : "Could not change it."); }
+              }}>{p.spec.animated ? "Make it still" : "Animate it"}</button>
+            )}
             {[["new_photo", "New photo"], ["make_video", "Make it a video"], ["make_carousel", "Make it a carousel"], ["make_reel", "Make it a reel"], ["shorter", "Shorter caption"], ["different_design", "Different design"]].filter(([a]) => !(a === "make_carousel" && p.spec.template === "carousel") && !(a === "make_video" && isVideoPost(p.spec)) && !(a === "make_reel" && p.spec.template === "reel")).map(([a, label]) => (
               <button key={a} type="button" disabled={busy !== null || making} onClick={() => revise({ action: a }, a)}>{busy === a ? "Working…" : label}</button>
             ))}

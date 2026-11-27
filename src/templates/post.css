@@ -291,3 +291,79 @@
 .bl-social-icons { display: flex; gap: 70px; padding-top: 22px; border-top: 2px solid #EEF1F4; }
 .bl-social-icons svg { width: 40px; height: 40px; fill: none; stroke: #536471; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .lk-cn-sharp .bl-social-card { border-radius: 4px; }
+
+/* ---------- Animated graphics ----------
+   Any graphic design with spec.animated gets .bl-anim: words and shapes move in over the first
+   few seconds, and the background keeps drifting so the whole clip stays alive. The export
+   steps these CSS animations frame by frame into an MP4 (src/lib/export.ts); thumbnails show
+   the final frame (.bl-still). */
+@keyframes bl-a-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bl-a-rise { from { opacity: 0; translate: 0 70px; } to { opacity: 1; translate: 0 0; } }
+@keyframes bl-a-left { from { opacity: 0; translate: -120px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes bl-a-right { from { opacity: 0; translate: 120px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes bl-a-pop { 0% { opacity: 0; scale: .3; } 70% { opacity: 1; scale: 1.12; } 100% { opacity: 1; scale: 1; } }
+@keyframes bl-a-drop { from { opacity: 0; scale: .8; rotate: -10deg; } to { opacity: 1; scale: 1; rotate: 0deg; } }
+@keyframes bl-a-pan { from { background-position: 0 0; } to { background-position: 180px 360px; } }
+@keyframes bl-a-float { from { translate: 0 0; } to { translate: 0 -36px; } }
+@keyframes bl-a-tick { to { background: #D69E00; border-color: #D69E00; box-shadow: inset 0 0 0 7px #FFFDF6; } }
+@keyframes bl-a-like { 0% { scale: 1; } 50% { scale: 1.35; fill: #F91880; stroke: #F91880; } 100% { scale: 1; fill: #F91880; stroke: #F91880; } }
+@keyframes bl-a-mark { from { background-size: 0% 100%; } to { background-size: 100% 100%; } }
+
+.bl-anim .bl-grid { animation: bl-a-pan 9s linear both; }
+.bl-anim .bl-kicker, .bl-anim .bl-chip, .bl-anim .bl-count { animation: bl-a-fade .6s .2s both; }
+.bl-anim .bl-h, .bl-anim .bl-qtext, .bl-anim .bl-poster-on { animation: bl-a-rise .8s cubic-bezier(.2,.8,.2,1) .5s both; }
+.bl-anim .bl-sub, .bl-anim .bl-qby, .bl-anim .bl-poster-small { animation: bl-a-rise .7s cubic-bezier(.2,.8,.2,1) 1.3s both; }
+.bl-anim .bl-foot { animation: bl-a-fade .8s 2.6s both; }
+
+/* the highlighted phrase sweeps in after the headline lands */
+.bl-anim.lk-em-highlight:not(.bl-colour):not(.bl-band) .bl-h .acc, .bl-anim.lk-em-classic.bl-light .bl-h .acc { background-image: linear-gradient(var(--p), var(--p)); background-color: transparent; background-repeat: no-repeat; animation: bl-a-mark .6s ease-out 1.4s both; }
+
+/* statement and stat */
+.bl-anim .bl-big { animation: bl-a-pop .9s cubic-bezier(.2,.8,.2,1) .3s both; }
+.bl-anim .bl-bar i { animation: bl-a-left .5s both; }
+.bl-anim .bl-bar i:nth-child(1) { animation-delay: 1.0s; } .bl-anim .bl-bar i:nth-child(2) { animation-delay: 1.15s; }
+.bl-anim .bl-bar i:nth-child(3) { animation-delay: 1.3s; } .bl-anim .bl-bar i:nth-child(4) { animation-delay: 1.45s; }
+
+/* list: items arrive one by one */
+.bl-anim .bl-item { animation: bl-a-left .6s cubic-bezier(.2,.8,.2,1) both; }
+.bl-anim .bl-item:nth-child(1) { animation-delay: 1.4s; } .bl-anim .bl-item:nth-child(2) { animation-delay: 2.0s; }
+.bl-anim .bl-item:nth-child(3) { animation-delay: 2.6s; } .bl-anim .bl-item:nth-child(4) { animation-delay: 3.2s; }
+
+/* chat: the conversation plays out, then the headline */
+.bl-anim .bl-bub { animation: bl-a-rise .5s cubic-bezier(.2,.8,.2,1) both; }
+.bl-anim .bl-bub:nth-child(1) { animation-delay: .3s; } .bl-anim .bl-bub:nth-child(2) { animation-delay: 1.0s; }
+.bl-anim .bl-bub:nth-child(3) { animation-delay: 1.7s; } .bl-anim .bl-bub:nth-child(4) { animation-delay: 2.4s; }
+.bl-anim .bl-bub:nth-child(5) { animation-delay: 3.1s; } .bl-anim .bl-bub:nth-child(6) { animation-delay: 3.8s; }
+.bl-anim .bl-chat .bl-h { animation-delay: 4.4s; }
+
+/* poster: the big word builds, the shapes float */
+.bl-anim .bl-poster-big span { animation: bl-a-rise .7s cubic-bezier(.2,.8,.2,1) both; }
+.bl-anim .bl-poster-big span:nth-child(1) { animation-delay: .2s; } .bl-anim .bl-poster-big span:nth-child(2) { animation-delay: .6s; } .bl-anim .bl-poster-big span:nth-child(3) { animation-delay: 1s; }
+.bl-anim .bl-poster-dot { animation: bl-a-pop .8s .8s both, bl-a-float 2.2s 1.6s ease-in-out infinite alternate; }
+.bl-anim .bl-poster-bar { animation: bl-a-rise .8s 1.1s both, bl-a-float 2.6s 1.9s ease-in-out infinite alternate-reverse; }
+
+/* quote */
+.bl-anim .bl-qmark { animation: bl-a-pop .8s cubic-bezier(.2,.8,.2,1) .2s both; }
+
+/* versus: the columns slide in from each side, then "vs" lands */
+.bl-anim .bl-vs-col { animation: bl-a-left .7s cubic-bezier(.2,.8,.2,1) 1.3s both; }
+.bl-anim .bl-vs-b { animation-name: bl-a-right; animation-delay: 2.1s; }
+.bl-anim .bl-vs-mid { animation: bl-a-pop .6s 2.9s both; }
+
+/* note: the note drops in and the boxes tick one by one */
+.bl-anim .bl-note-card { animation: bl-a-drop .8s cubic-bezier(.2,.8,.2,1) .2s both; }
+.bl-anim .bl-note-h { animation: bl-a-fade .6s .9s both; }
+.bl-anim .bl-note-card li { animation: bl-a-fade .4s both; }
+.bl-anim .bl-note-card li i.on { background: none; border-color: #B8B2A3; box-shadow: none; }
+.bl-anim .bl-note-card li i { animation: bl-a-tick .25s both; }
+.bl-anim .bl-note-card li:nth-child(1) { animation-delay: 1.2s; } .bl-anim .bl-note-card li:nth-child(1) i { animation-delay: 2.4s; }
+.bl-anim .bl-note-card li:nth-child(2) { animation-delay: 1.4s; } .bl-anim .bl-note-card li:nth-child(2) i { animation-delay: 3.1s; }
+.bl-anim .bl-note-card li:nth-child(3) { animation-delay: 1.6s; } .bl-anim .bl-note-card li:nth-child(3) i { animation-delay: 3.8s; }
+.bl-anim .bl-note-card li:nth-child(4) { animation-delay: 1.8s; } .bl-anim .bl-note-card li:nth-child(4) i { animation-delay: 4.5s; }
+.bl-anim .bl-note-card li:nth-child(5) { animation-delay: 2.0s; } .bl-anim .bl-note-card li:nth-child(5) i { animation-delay: 5.2s; }
+
+/* social: the post slides up, then gets a like */
+.bl-anim .bl-social-card { animation: bl-a-rise .8s cubic-bezier(.2,.8,.2,1) .2s both; }
+.bl-anim .bl-social-text { animation: bl-a-fade .8s .9s both; }
+.bl-anim .bl-social-icons { animation: bl-a-fade .5s 1.8s both; }
+.bl-anim .bl-social-icons svg:first-child { animation: bl-a-like .6s 2.8s both; }

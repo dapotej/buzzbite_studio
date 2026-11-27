@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import { DEFAULT_LOOK, type BrandProfile, type Look, type PostSpec } from "@/lib/types";
+import { DEFAULT_LOOK, isAnimated, type BrandProfile, type Look, type PostSpec } from "@/lib/types";
 
 /** Length of the animated-graphic template, in seconds. Video posts use their clip's length. */
 export const MOTION_SECONDS = 9;
@@ -80,7 +80,8 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
   const onBg: "light" | "dark" = bg === "colour" || bg === "accent" ? (inkOn(bgColour, dark) === "#FFFFFF" ? "dark" : "light") : bg;
   if (bg === "accent") Object.assign(vars, { "--bgc": bgColour, "--on-bgc": inkOn(bgColour, dark) });
   const bgClass = bg === "accent" ? "bl-colour" : `bl-${bg}`;
-  const wrap = (cls: string, body: ReactNode) => <div className={`bl-post ${cls} ${lk}${still}`} style={vars}>{body}</div>;
+  const anim = isAnimated(spec) ? " bl-anim" : "";
+  const wrap = (cls: string, body: ReactNode) => <div className={`bl-post ${cls} ${lk}${anim}${still}`} style={vars}>{body}</div>;
 
   switch (spec.template) {
     case "photo":

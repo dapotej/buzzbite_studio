@@ -12,7 +12,7 @@ const pairsToText = (p: { name: string; description: string }[]) => p.map((x) =>
 const textToPairs = (s: string) => lines(s).map((l) => { const i = l.indexOf(":"); return i > 0 ? { name: l.slice(0, i).trim(), description: l.slice(i + 1).trim() } : { name: l, description: "" }; });
 
 const SAMPLE: PostSpec = {
-  template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", quote: "", sub: "", note: "", big: "", bigLabel: "",
+  template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", quote: "", animated: false, sub: "", note: "", big: "", bigLabel: "",
   items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", showsProduct: false, slides: [], scenes: [], music: "", media: null, clip: null,
 };
 
