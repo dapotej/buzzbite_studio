@@ -5,7 +5,7 @@ import { draftBrandProfile } from "@/lib/ai";
 import { createBrand } from "@/lib/db";
 import { handle } from "@/lib/http";
 import { SiteError, describeSite, readWebsite, type SiteImport } from "@/lib/siteImport";
-import type { BrandProfile } from "@/lib/types";
+import { DEFAULT_LOOK, type BrandProfile } from "@/lib/types";
 
 export const maxDuration = 120;
 
@@ -20,7 +20,7 @@ function blankProfile(name: string, website: string): BrandProfile {
     name, oneLiner: "", offerings: [], audience: [], pillars: [], voice: { traits: [], do: [], dont: [] },
     facts: [], ctas: [], hashtags: [], website, imageStyle: "",
     colors: { primary: "#2F5BEA", dark: "#15171C", light: "#F5F6F8", supporting: [] },
-    fonts: { display: "Poppins", body: "Inter" },
+    fonts: { display: "Poppins", body: "Inter" }, look: DEFAULT_LOOK,
   };
 }
 

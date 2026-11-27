@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import type { BrandProfile, PostSpec } from "@/lib/types";
+import { DEFAULT_LOOK, type BrandProfile, type Look, type PostSpec } from "@/lib/types";
 
 /** Length of the animated-graphic template, in seconds. Video posts use their clip's length. */
 export const MOTION_SECONDS = 9;
@@ -18,6 +18,12 @@ function luminance(hex: string): number {
 }
 /** The brand's dark colour or white, whichever reads better on the given colour. */
 export const inkOn = (hex: string, dark: string) => (luminance(hex) > 0.35 ? dark : "#FFFFFF");
+
+/** The brand's look as classes on the post (see post.css, "Looks"). */
+export function lookClasses(look: Look | undefined): string {
+  const l = { ...DEFAULT_LOOK, ...(look ?? {}) };
+  return `lk-type-${l.type} lk-em-${l.emphasis} lk-cn-${l.corners} lk-al-${l.align} lk-ph-${l.photo} lk-tx-${l.texture} lk-lb-${l.labels} lk-logo-${l.logo} lk-sp-${l.spacing}`;
+}
 
 /** Renders *highlighted* words as accent spans. */
 function Md({ text }: { text: string }) {
@@ -64,7 +70,12 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
     );
   };
   const still = animate ? "" : " bl-still";
-  const wrap = (cls: string, body: ReactNode) => <div className={`bl-post ${cls}${still}`} style={vars}>{body}</div>;
+  const lk = lookClasses(brand.look);
+  // Graphic posts take their background from the brand's look; "mixed" keeps the post's own light or dark.
+  const surface = brand.look?.surface ?? "mixed";
+  const bg = surface === "mixed" ? spec.theme : surface;
+  const onBg: "light" | "dark" = bg === "colour" ? (inkOn(primary, dark) === "#FFFFFF" ? "dark" : "light") : bg;
+  const wrap = (cls: string, body: ReactNode) => <div className={`bl-post ${cls} ${lk}${still}`} style={vars}>{body}</div>;
 
   switch (spec.template) {
     case "photo":
@@ -120,16 +131,16 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
       </>);
     }
     case "statement":
-      return wrap(`bl-${spec.theme}`, <>
+      return wrap(`bl-${bg}`, <>
         <div className="bl-grid" />
         <div className="bl-body bl-between">
           <Kicker text={spec.kicker} />
           <div className="bl-stack"><h1 className="bl-h bl-h-xl"><Md text={spec.headline} /></h1>{spec.sub && <p className="bl-sub"><Md text={spec.sub} /></p>}</div>
         </div>
-        {foot(spec.theme)}
+        {foot(onBg)}
       </>);
     case "stat":
-      return wrap(`bl-${spec.theme}`, <>
+      return wrap(`bl-${bg}`, <>
         <div className="bl-grid" />
         <div className="bl-body bl-between">
           <Kicker text={spec.kicker} />
@@ -140,10 +151,10 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
             {spec.sub && <p className="bl-sub" style={{ marginTop: 24 }}><Md text={spec.sub} /></p>}
           </div>
         </div>
-        {foot(spec.theme)}
+        {foot(onBg)}
       </>);
     case "list":
-      return wrap(`bl-${spec.theme}`, <>
+      return wrap(`bl-${bg}`, <>
         <div className="bl-grid" />
         <div className="bl-body">
           <Kicker text={spec.kicker} />
@@ -157,16 +168,16 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
             ))}
           </div>
         </div>
-        {foot(spec.theme)}
+        {foot(onBg)}
       </>);
     case "chat":
-      return wrap(`bl-${spec.theme}`, <>
+      return wrap(`bl-${bg}`, <>
         <div className="bl-grid" />
         <div className="bl-body bl-chat">
           {spec.bubbles.slice(0, 6).map((b, i) => <div key={i} className={`bl-bub ${b.fromCustomer ? "me" : "them"}`}>{b.text}</div>)}
           <h1 className="bl-h bl-h-m" style={{ marginTop: 36 }}><Md text={spec.headline} /></h1>
         </div>
-        {foot(spec.theme)}
+        {foot(onBg)}
       </>);
     case "poster":
       return wrap("bl-light bl-poster", <>
@@ -223,13 +234,18 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
     }
     case "motion":
     default:
-      return <Motion spec={spec} vars={vars} logo={logoOnLight} name={brand.name} animate={animate} />;
+      return <Motion spec={spec} vars={vars} logo={logoOnLight} name={brand.name} animate={animate} look={lk} />;
   }
 }
 
 /** The post's photo, or its video clip when there is one. */
-function Media({ spec, animate, className = "", kenBurns = false }: { spec: PostSpec; animate: boolean; className?: string; kenBurns?: boolean }) {
-  const cls = `bl-ph ${className}`;
+function Media(props: { spec: PostSpec; animate: boolean; className?: string; kenBurns?: boolean }) {
+  // The box takes the layout (size, position, corners); the photo fills it, with a tint layer above for duotone looks.
+  return <div className={`bl-ph ${props.className ?? ""}`}><MediaFill {...props} /><i className="bl-tint" aria-hidden="true" /></div>;
+}
+
+function MediaFill({ spec, animate, kenBurns = false }: { spec: PostSpec; animate: boolean; className?: string; kenBurns?: boolean }) {
+  const cls = "bl-fill";
   if (animate && spec.clip?.url) {
     return <video className={cls} src={spec.clip.url} poster={spec.media?.url} crossOrigin="anonymous" muted loop playsInline autoPlay preload="auto" />;
   }
@@ -250,13 +266,13 @@ function Kicker({ text }: { text: string }) {
 
 const ROUTE = "M120 300 C260 380 330 520 470 560 S700 610 760 760 S900 900 980 980";
 
-function Motion({ spec, vars, logo, name, animate }: { spec: PostSpec; vars: CSSProperties; logo: string | null; name: string; animate: boolean }) {
+function Motion({ spec, vars, logo, name, animate, look }: { spec: PostSpec; vars: CSSProperties; logo: string | null; name: string; animate: boolean; look: string }) {
   const lines = spec.lines.filter(Boolean).slice(0, 3);
   const lineStart = 1.2, step = 0.9;
   const endAt = Math.min(MOTION_SECONDS - 2.4, lineStart + lines.length * step + 2.4);
   const delay = (s: number): CSSProperties => ({ animationDelay: `${s}s` });
   return (
-    <div className={`bl-post bl-dark bl-motion ${animate ? "" : "bl-still"}`} style={vars}>
+    <div className={`bl-post bl-dark bl-motion ${look} ${animate ? "" : "bl-still"}`} style={vars}>
       <div className="bl-grid" />
       <svg className="bl-route" viewBox="0 0 1080 1350" width="1080" height="1350" aria-hidden="true">
         <path d={ROUTE} fill="none" stroke="rgba(255,255,255,.08)" strokeWidth="18" strokeLinecap="round" />

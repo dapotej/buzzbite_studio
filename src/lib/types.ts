@@ -1,5 +1,55 @@
 import { z } from "zod";
 
+export const TEMPLATE_IDS = [
+  "photo", "photo_band", "photo_frame", "photo_stat", "video",
+  "statement", "stat", "list", "chat", "poster", "motion", "carousel", "reel",
+] as const;
+export type TemplateId = (typeof TEMPLATE_IDS)[number];
+
+/**
+ * How a brand's posts look, beyond colours and fonts, so two brands never share a style.
+ * Every post design reads these: type, emphasis, corners, alignment, photo treatment and so on.
+ */
+export const LOOK_OPTIONS = {
+  type: { heavy: "Heavy and tight", editorial: "Editorial: lighter, more air", caps: "All caps", light: "Light and large" },
+  emphasis: { color: "Key words in colour", highlight: "Highlighter block", underline: "Thick underline", italic: "Italics", none: "No emphasis" },
+  corners: { sharp: "Square", soft: "Slightly rounded", round: "Very rounded" },
+  align: { left: "Left", center: "Centred" },
+  photo: { natural: "Natural", warm: "Warm film", vivid: "Vivid", mono: "Black and white", duotone: "Brand-colour duotone" },
+  surface: { mixed: "Mix of light and dark", dark: "Dark", light: "Light", colour: "Brand colour" },
+  texture: { none: "Plain", grid: "Grid", dots: "Dots", grain: "Film grain", lines: "Diagonal lines" },
+  labels: { solid: "Solid tags", outline: "Outlined tags", plain: "Plain text" },
+  logo: { bottom: "Bottom", top: "Top" },
+  spacing: { bold: "Big and bold", airy: "Smaller, airier" },
+} as const;
+type Opt<K extends keyof typeof LOOK_OPTIONS> = keyof (typeof LOOK_OPTIONS)[K];
+const opt = <K extends keyof typeof LOOK_OPTIONS>(k: K, d: string) =>
+  z.enum(Object.keys(LOOK_OPTIONS[k]) as [Opt<K> & string, ...(Opt<K> & string)[]]).describe(d);
+
+export const LookSchema = z.object({
+  name: z.string().describe("A two- or three-word name for this look, e.g. 'Night editorial'."),
+  type: opt("type", "Headline treatment: heavy (tight, very bold), editorial (lighter weight, more line spacing), caps (uppercase, tracked), light (thin and large)."),
+  emphasis: opt("emphasis", "How the *key phrase* in a headline stands out."),
+  corners: opt("corners", "Corner style for tags, cards, frames and bubbles."),
+  align: opt("align", "Text alignment for headlines and copy."),
+  photo: opt("photo", "Colour treatment for every photo."),
+  surface: opt("surface", "Background of graphic posts (statements, lists, numbers, chats): mixed, always dark, always light, or the brand colour."),
+  texture: opt("texture", "Background texture on graphic posts."),
+  labels: opt("labels", "Style of small labels and kickers."),
+  logo: opt("logo", "Where the logo sits."),
+  spacing: opt("spacing", "Overall scale: big and bold, or smaller type with more space."),
+  templates: z.array(z.enum(TEMPLATE_IDS)).describe("4-8 post designs this brand leans on most, best first. Others are still used now and then."),
+  headlines: z.string().describe("How this brand writes headlines, in one or two sentences: structure, tone, length, whether to use questions, numbers, wordplay or a highlighted phrase."),
+});
+export type Look = z.infer<typeof LookSchema>;
+
+/** The look brands had before looks existed. New brands get one chosen for them. */
+export const DEFAULT_LOOK: Look = {
+  name: "Classic bold", type: "heavy", emphasis: "highlight", corners: "soft", align: "left", photo: "natural", surface: "mixed", texture: "grid",
+  labels: "solid", logo: "bottom", spacing: "bold", templates: [], headlines: "",
+};
+
+
 /** Everything Buzzbite knows about a brand. Stored as JSON on brands.profile. */
 export const BrandProfileSchema = z.object({
   name: z.string(),
@@ -23,8 +73,10 @@ export const BrandProfileSchema = z.object({
     display: z.string().describe("Google Fonts family for headlines."),
     body: z.string().describe("Google Fonts family for body text."),
   }),
+  look: LookSchema,
 });
 export type BrandProfile = z.infer<typeof BrandProfileSchema>;
+
 
 /** The posting plan: which weekdays to post on (0 = Monday) and at what time. */
 /** A photo of the brand's real product, copied by the image model whenever a post shows the product. */
@@ -86,11 +138,6 @@ export type Brand = {
   updated_at: string;
 };
 
-export const TEMPLATE_IDS = [
-  "photo", "photo_band", "photo_frame", "photo_stat", "video",
-  "statement", "stat", "list", "chat", "poster", "motion", "carousel", "reel",
-] as const;
-export type TemplateId = (typeof TEMPLATE_IDS)[number];
 
 export const TEMPLATES: Record<TemplateId, { name: string; usesPhoto: boolean; video: boolean; guide: string }> = {
   photo: { name: "Photo", usesPhoto: true, video: false, guide: "Full-bleed photo, kicker label top-left, big headline at the bottom." },
@@ -113,7 +160,7 @@ export const PostSpecSchema = z.object({
   template: z.enum(TEMPLATE_IDS),
   theme: z.enum(["light", "dark"]),
   kicker: z.string().describe("Short label, 1-4 words."),
-  headline: z.string().describe("Six words or fewer. Wrap the 1-3 key words in *asterisks* to highlight them."),
+  headline: z.string().describe("Six words or fewer, in the brand's headline style. Where the style uses emphasis, wrap 1-3 key words in *asterisks*."),
   sub: z.string().describe("Optional line under the headline, under 12 words, or empty."),
   note: z.string().describe("photo_frame/poster: a short tag line, under 8 words, or empty."),
   big: z.string().describe("photo_stat/stat/poster: the big figure or 1-2 word title. Figures must come from the brand facts."),
@@ -133,7 +180,7 @@ export const PostSpecSchema = z.object({
       z.object({
         layout: z.enum(["cover", "point", "stat", "quote", "cta"]),
         kicker: z.string().describe("Short label, 1-4 words, or empty."),
-        headline: z.string().describe("Under 9 words. Wrap 1-3 key words in *asterisks*."),
+        headline: z.string().describe("Under 9 words, in the brand's headline style. Where the style uses emphasis, wrap 1-3 key words in *asterisks*."),
         body: z.string().describe("Under 30 words, or empty. cover: a one-line promise; cta: the call to action."),
         big: z.string().describe("stat: the figure (brand facts only). point: leave empty (slides are numbered automatically)."),
       }),

@@ -3,7 +3,7 @@ import { neon } from "@neondatabase/serverless";
 import { requireSession } from "./accounts";
 import { noteAlert, resolveAlerts } from "./alerts";
 import { recordFal } from "./usage";
-import { EMPTY_PUBLISHING, type Brand, type BrandProfile, type BrandSettings, type BrandSocial, type Idea, type Media, type Post, type PostSpec, type PostStatus, type Publishing, type TrendItem, type TrendReport } from "./types";
+import { DEFAULT_LOOK, EMPTY_PUBLISHING, type Brand, type BrandProfile, type BrandSettings, type BrandSocial, type Idea, type Media, type Post, type PostSpec, type PostStatus, type Publishing, type TrendItem, type TrendReport } from "./types";
 
 function client() {
   const url = process.env.DATABASE_URL;
@@ -22,7 +22,7 @@ const day = (v: unknown) => (v == null ? null : v instanceof Date ? v.toISOStrin
 
 /** Fills fields added after a brand was saved, so older rows keep working. */
 function normalizeProfile(p: BrandProfile): BrandProfile {
-  return { ...p, imageStyle: p.imageStyle ?? "", colors: { ...p.colors, supporting: p.colors?.supporting ?? [] } };
+  return { ...p, imageStyle: p.imageStyle ?? "", colors: { ...p.colors, supporting: p.colors?.supporting ?? [] }, look: { ...DEFAULT_LOOK, ...(p.look ?? {}) } };
 }
 function toBrand(r: Row): Brand {
   const s = (r.settings ?? {}) as Partial<BrandSettings>;

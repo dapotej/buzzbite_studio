@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoToDataUrl, whiteVersion } from "./logo";
 import { ScaledPost } from "./PostThumb";
-import { PLATFORM_NAMES, PLATFORMS, type Brand, type BrandProfile, type Platform, type PostSpec, type ProductReference, type SocialAccount, VOICES } from "@/lib/types";
+import { LOOK_OPTIONS, PLATFORM_NAMES, PLATFORMS, TEMPLATES, TEMPLATE_IDS, type Brand, type BrandProfile, type Look, type TemplateId, type Platform, type PostSpec, type ProductReference, type SocialAccount, VOICES } from "@/lib/types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -15,6 +15,61 @@ const SAMPLE: PostSpec = {
   template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", sub: "", note: "", big: "", bigLabel: "",
   items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", showsProduct: false, slides: [], scenes: [], music: "", media: null, clip: null,
 };
+
+const SAMPLE_LIST: PostSpec = {
+  ...SAMPLE, template: "list", theme: "light", kicker: "How it works", headline: "Three steps to *a full feed*",
+  items: [{ title: "Tell us about the brand", detail: "" }, { title: "Approve the week's posts", detail: "" }, { title: "We post them for you", detail: "" }],
+};
+const SAMPLE_PHOTO = (url: string): PostSpec => ({ ...SAMPLE, template: "photo", kicker: "New", headline: "Made for *the way you work*", media: { id: "sample", url, kind: "image" } });
+
+const LOOK_LABELS: Record<keyof typeof LOOK_OPTIONS, string> = {
+  type: "Headline type", emphasis: "Key words", corners: "Corners", align: "Alignment", photo: "Photos", surface: "Background",
+  texture: "Background texture", labels: "Labels", logo: "Logo", spacing: "Scale",
+};
+
+/** The brand's look: how posts are designed beyond colour and fonts. Claude can suggest one from the brand. */
+function LookEditor({ brandId, look, onChange }: { brandId: string; look: Look; onChange: (l: Look) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function suggest() {
+    setBusy(true); setError("");
+    const res = await fetch(`/api/brands/${brandId}/look`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ different: true }) });
+    const body = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) return setError(body.error ?? "Could not suggest a look.");
+    onChange(body.look);
+  }
+  const toggle = (t: TemplateId) => onChange({ ...look, templates: look.templates.includes(t) ? look.templates.filter((x) => x !== t) : [...look.templates, t] });
+  return (
+    <div className="stack">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <label className="field" style={{ flex: "1 1 220px" }}>Look name<input type="text" value={look.name} onChange={(e) => onChange({ ...look, name: e.target.value })} /></label>
+        <button type="button" className="btn" onClick={suggest} disabled={busy}>{busy ? "Thinking…" : "Suggest a different look"}</button>
+      </div>
+      {error && <p className="error" role="alert">{error}</p>}
+      <div className="look-grid">
+        {(Object.keys(LOOK_OPTIONS) as (keyof typeof LOOK_OPTIONS)[]).map((k) => (
+          <label className="field" key={k}>{LOOK_LABELS[k]}
+            <select value={look[k]} onChange={(e) => onChange({ ...look, [k]: e.target.value })}>
+              {Object.entries(LOOK_OPTIONS[k]).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+      <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend>Favourite designs<span className="hint"> Used for most posts; the others still appear now and then.</span></legend>
+        <div className="chips">
+          {TEMPLATE_IDS.map((t) => (
+            <button type="button" key={t} className={`chip-toggle${look.templates.includes(t) ? " on" : ""}`} aria-pressed={look.templates.includes(t)} onClick={() => toggle(t)}>{TEMPLATES[t].name}</button>
+          ))}
+        </div>
+      </fieldset>
+      <label className="field">Headline style<span className="hint">How this brand writes headlines: tone, structure, questions, numbers, wordplay.</span>
+        <textarea rows={2} value={look.headlines} onChange={(e) => onChange({ ...look, headlines: e.target.value })} />
+      </label>
+    </div>
+  );
+}
 
 /** Logo upload with an automatic white version for dark backgrounds. */
 export function LogoUpload({ colors, light, dark, onChange }: {
@@ -81,6 +136,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
   const [colors, setColors] = useState(p.colors);
   const [logos, setLogos] = useState({ light: brand.logo_on_light, dark: brand.logo_on_dark });
   const [fonts, setFonts] = useState(p.fonts);
+  const [look, setLook] = useState<Look>(p.look);
   const [time, setTime] = useState(brand.settings.time);
   const [tz, setTz] = useState(brand.settings.tz);
   const [refs, setRefs] = useState<ProductReference[]>(brand.settings.references);
@@ -99,7 +155,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
       offerings: textToPairs(g("offerings")), audience: lines(g("audience")), pillars: textToPairs(g("pillars")),
       voice: { traits: lines(g("traits")), do: lines(g("do")), dont: lines(g("dont")) },
       facts: lines(g("facts")), ctas: lines(g("ctas")), hashtags: lines(g("hashtags")),
-      colors, fonts, imageStyle: g("imageStyle"),
+      colors, fonts, imageStyle: g("imageStyle"), look,
     };
     setState("saving"); setError("");
     const res = await fetch(`/api/brands/${brand.id}`, { method: "PATCH", headers: { "content-type": "application/json" },
@@ -115,7 +171,8 @@ export function BrandKit({ brand }: { brand: Brand }) {
   const area = (name: string, label: string, value: string, hint?: string, rows = 4) => (
     <label className="field" htmlFor={name}>{label}{hint && <span className="hint">{hint}</span>}<textarea id={name} name={name} defaultValue={value} rows={rows} /></label>
   );
-  const preview: BrandProfile = { ...p, colors, fonts };
+  const preview: BrandProfile = { ...p, colors, fonts, look };
+  const samplePhoto = refs[0]?.url;
 
   return (
     <form className="wrap" onSubmit={save}>
@@ -135,6 +192,16 @@ export function BrandKit({ brand }: { brand: Brand }) {
       <UpdatePosts brand={brand} />
 
       <SocialAccounts brand={brand} />
+
+      <section className="card stack">
+        <div><h2>Look</h2><p className="small muted">What makes this brand&rsquo;s posts its own, beyond colours and fonts. Save to apply it to every post.</p></div>
+        <LookEditor brandId={brand.id} look={look} onChange={setLook} />
+        <div className="look-previews">
+          <ScaledPost brand={preview} spec={SAMPLE} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />
+          <ScaledPost brand={preview} spec={SAMPLE_LIST} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />
+          {samplePhoto && <ScaledPost brand={preview} spec={SAMPLE_PHOTO(samplePhoto)} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />}
+        </div>
+      </section>
 
       <section className="card kit-look">
         <div className="stack">
@@ -391,7 +458,7 @@ function RefreshFromSite({ brand }: { brand: Brand }) {
     setBusy("apply"); setError("");
     const cur = brand.profile;
     const next: BrandProfile = take.words
-      ? { ...proposal.profile, colors: take.look ? proposal.profile.colors : cur.colors, fonts: take.look ? proposal.profile.fonts : cur.fonts, imageStyle: cur.imageStyle || proposal.profile.imageStyle }
+      ? { ...proposal.profile, colors: take.look ? proposal.profile.colors : cur.colors, fonts: take.look ? proposal.profile.fonts : cur.fonts, look: take.look ? proposal.profile.look : cur.look, imageStyle: cur.imageStyle || proposal.profile.imageStyle }
       : { ...cur, website: proposal.site.url, ...(take.look ? { colors: proposal.profile.colors, fonts: proposal.profile.fonts } : {}) };
     const body: Record<string, unknown> = { profile: next };
     if (take.logo && proposal.logo) { body.logo_on_light = proposal.logo.light; body.logo_on_dark = proposal.logo.dark ?? brand.logo_on_dark; }

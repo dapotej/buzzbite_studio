@@ -363,3 +363,11 @@ table.leads th { font-size: 12px; text-transform: uppercase; letter-spacing: .04
 .alerts a { font-weight: 700; color: inherit; }
 .alerts .alert-x { flex: none; min-height: 32px; padding: 4px 10px; color: var(--wait); }
 .health td, .health th { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 14px; }
+
+/* Brand kit: look */
+.look-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.look-previews { display: grid; grid-template-columns: repeat(3, minmax(0, 220px)); gap: 14px; }
+@media (max-width: 700px) { .look-previews { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chip-toggle { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 36px; }
+.chip-toggle.on { background: var(--ink); border-color: var(--ink); color: var(--bg); }

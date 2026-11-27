@@ -14,6 +14,8 @@ export type SiteImport = {
   colors: { hex: string; count: number }[];
   themeColor: string | null;
   fonts: string[];
+  /** Hints about the site's design style, for choosing the brand's look. */
+  style: string[];
   logo: { light: string; dark: string | null } | null;
 };
 
@@ -262,8 +264,31 @@ export async function readWebsite(input: string): Promise<SiteImport> {
     colors: [...counts].map(([hex, count]) => ({ hex, count })).sort((a, b) => b.count - a.count).slice(0, 16),
     themeColor,
     fonts: fontsFrom(htmls.join("\n"), css),
+    style: styleHints(css),
     logo: await fetchLogo(logoCandidates(html, base)),
   };
+}
+
+/** Rough signals of the site's design style from its CSS: corners, capitals, serif type, gradients, shadows. */
+function styleHints(css: string): string[] {
+  const out: string[] = [];
+  const radii = [...css.matchAll(/border-radius\s*:\s*([0-9.]+)(px|rem|em|%)/gi)].map((m) => (m[2] === "px" ? Number(m[1]) : m[2] === "%" ? (Number(m[1]) >= 50 ? 999 : 12) : Number(m[1]) * 16));
+  if (radii.length >= 3) {
+    const sorted = radii.sort((a, b) => a - b);
+    const mid = sorted[Math.floor(sorted.length / 2)];
+    out.push(mid <= 2 ? "square corners" : mid <= 10 ? "slightly rounded corners" : mid >= 40 ? "pill-shaped, very rounded corners" : "rounded corners");
+  } else out.push("few rounded corners (mostly square)");
+  const upper = (css.match(/text-transform\s*:\s*uppercase/gi) ?? []).length;
+  if (upper >= 4) out.push(`uppercase text used often (${upper} rules)`);
+  const serif = /font-family\s*:[^;}]*\b(serif|garamond|playfair|georgia|times|lora|merriweather|baskerville|caslon|fraunces|dm serif)\b/i.test(css.replace(/sans-serif/gi, ""));
+  if (serif) out.push("serif typefaces");
+  const gradients = (css.match(/(linear|radial)-gradient\(/gi) ?? []).length;
+  if (gradients >= 4) out.push("gradients");
+  const shadows = (css.match(/box-shadow\s*:/gi) ?? []).length;
+  if (shadows >= 6) out.push("soft shadows");
+  const weights = [...css.matchAll(/font-weight\s*:\s*(\d{3})/gi)].map((m) => Number(m[1]));
+  if (weights.length >= 4) out.push(weights.filter((w) => w >= 700).length / weights.length > 0.4 ? "heavy, bold type" : weights.filter((w) => w <= 400).length / weights.length > 0.5 ? "light, quiet type" : "medium-weight type");
+  return out;
 }
 
 /** The website's words and design signals, written for Claude. */
@@ -271,10 +296,11 @@ export function describeSite(s: SiteImport): string {
   const pages = s.pages.map((p) => `--- ${p.title || p.url} (${p.url})\n${p.text}`).join("\n\n").slice(0, 30_000);
   return [
     `Website: ${s.url}`,
-    "Design signals found in the website's code (use them for colours and fonts):",
+    "Design signals found in the website's code (use them for colours, fonts and the look):",
     `- Colours by how often the CSS uses them: ${s.colors.map((c) => `${c.hex} (${c.count})`).join(", ") || "none found"}`,
     `- Theme colour: ${s.themeColor ?? "none"}`,
     `- Fonts: ${s.fonts.join(", ") || "none found"}`,
+    `- Style: ${s.style?.join("; ") || "no clear signals"}`,
     "",
     "Text from the website:",
     pages,

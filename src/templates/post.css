@@ -39,7 +39,9 @@
 .bl-chip-live i { width: 14px; height: 14px; border-radius: 50%; background: var(--s4); animation: bl-blink 1s infinite; }
 
 /* photo layouts */
-.bl-ph { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; display: block; }
+.bl-ph { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; overflow: hidden; }
+.bl-fill { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.bl-tint { position: absolute; inset: 0; pointer-events: none; display: none; }
 .bl-ph-wait { display: flex; align-items: center; justify-content: center; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--dark) 85%, #fff) 0 30px, color-mix(in srgb, var(--dark) 92%, #fff) 30px 60px); color: rgba(255,255,255,.7); font-size: 34px; font-weight: 600; }
 .bl-shade { position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, rgba(0,0,0,.38) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,0) 44%, rgba(0,0,0,.86) 100%); }
 .bl-shade-low { background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,.86) 100%); }
@@ -124,3 +126,111 @@
 @keyframes bl-drive { from { offset-distance: 0%; } to { offset-distance: 100%; } }
 @keyframes bl-kb { from { transform: scale(1); } to { transform: scale(1.12); } }
 @keyframes bl-blink { 50% { opacity: .25; } }
+
+/* ---------- Looks ----------
+   Each brand has a look (src/lib/types.ts, LookSchema) applied as lk-* classes on .bl-post, so
+   brands differ in more than colour: type, emphasis, corners, alignment, photos, texture, labels,
+   logo position and scale. "Classic bold" (heavy, highlight, soft, left, natural, grid, solid,
+   bottom, bold) is the base style above. */
+
+/* type */
+.lk-type-editorial .bl-h, .lk-type-editorial .bl-vl, .lk-type-editorial .bl-ln, .lk-type-editorial .bl-end h2, .lk-type-editorial .bl-poster-on { font-weight: 600; letter-spacing: -1px; line-height: 1.1; }
+.lk-type-editorial .bl-poster-big, .lk-type-editorial .bl-big { font-weight: 600; letter-spacing: -5px; }
+.lk-type-light .bl-h, .lk-type-light .bl-vl, .lk-type-light .bl-ln, .lk-type-light .bl-end h2, .lk-type-light .bl-poster-on { font-weight: 400; letter-spacing: -2px; line-height: 1.04; }
+.lk-type-light .bl-poster-big, .lk-type-light .bl-big { font-weight: 400; letter-spacing: -8px; }
+.lk-type-light .bl-h-xl { font-size: 118px; }
+.lk-type-caps .bl-h, .lk-type-caps .bl-vl, .lk-type-caps .bl-ln, .lk-type-caps .bl-end h2, .lk-type-caps .bl-poster-on { text-transform: uppercase; letter-spacing: 0; line-height: 1.02; font-weight: 700; }
+.lk-type-caps .bl-h-xl { font-size: 94px; } .lk-type-caps .bl-h-l { font-size: 76px; } .lk-type-caps .bl-h-m { font-size: 70px; }
+.lk-type-caps .bl-vl, .lk-type-caps .bl-ln { font-size: 90px; }
+.lk-type-caps .bl-poster-big { text-transform: uppercase; letter-spacing: -4px; font-size: 190px; }
+
+/* scale */
+.lk-sp-airy .bl-h-xl { font-size: 90px; } .lk-sp-airy .bl-h-l { font-size: 70px; } .lk-sp-airy .bl-h-m { font-size: 66px; }
+.lk-sp-airy .bl-vl, .lk-sp-airy .bl-ln { font-size: 84px; } .lk-sp-airy .bl-sub { font-size: 30px; }
+.lk-sp-airy .bl-big { font-size: 220px; } .lk-sp-airy .bl-poster-big { font-size: 180px; }
+.lk-sp-airy .bl-body { padding: 96px 96px 170px; }
+.lk-sp-airy .bl-bottom, .lk-sp-airy .bl-foot, .lk-sp-airy .bl-frame-h, .lk-sp-airy .bl-car-mid, .lk-sp-airy .bl-lines { left: 96px; right: 96px; }
+.lk-sp-airy .bl-chip, .lk-sp-airy .bl-mkicker { left: 96px; top: 96px; }
+.lk-sp-airy .bl-band-box { padding: 60px 96px; }
+.lk-sp-airy .bl-item { padding: 22px 26px; font-size: 32px; }
+
+/* emphasis of the *key phrase* */
+.bl-post.lk-em-color .acc { background: none; padding: 0; color: var(--p); }
+.bl-post.lk-em-color.bl-light .acc { color: color-mix(in srgb, var(--p) 72%, var(--dark)); }
+.bl-post.lk-em-color.bl-band .acc, .bl-post.lk-em-color .bl-end .acc { color: inherit; text-decoration: underline; text-decoration-thickness: .1em; text-underline-offset: .12em; }
+.bl-post.lk-em-highlight .acc { background: var(--p); color: var(--on-p); padding: 0 .14em; border-radius: var(--acc-r, 12px); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.bl-post.lk-em-highlight.bl-band .acc, .bl-post.lk-em-highlight .bl-end .acc { background: var(--dark); color: var(--light); }
+.bl-post.lk-em-underline .acc { background: none; padding: 0; color: inherit; text-decoration: underline; text-decoration-color: var(--p); text-decoration-thickness: .13em; text-underline-offset: .1em; text-decoration-skip-ink: none; }
+.bl-post.lk-em-underline.bl-band .acc, .bl-post.lk-em-underline .bl-end .acc { text-decoration-color: var(--dark); }
+.bl-post.lk-em-italic .acc { background: none; padding: 0; color: inherit; font-style: italic; }
+.bl-post.lk-em-italic.bl-dark .acc, .bl-post.lk-em-italic.bl-photo .acc { color: var(--p); }
+.bl-post.lk-em-none .acc { background: none; padding: 0; color: inherit; font-style: inherit; text-decoration: none; }
+/* small print never gets the headline treatment */
+.bl-post .bl-sub .acc, .bl-post .bl-car-body .acc { background: none; padding: 0; color: inherit; font-weight: 700; font-style: inherit; text-decoration: none; }
+
+/* corners */
+.lk-cn-sharp { --acc-r: 0; }
+.lk-cn-sharp .bl-chip, .lk-cn-sharp .bl-frame-ph, .lk-cn-sharp .bl-frame-note, .lk-cn-sharp .bl-item, .lk-cn-sharp .bl-bub, .lk-cn-sharp .bl-poster-bar,
+.lk-cn-sharp .bl-count, .lk-cn-sharp .bl-bar i, .lk-cn-sharp .bl-n, .lk-cn-sharp .bl-car-n, .lk-cn-sharp .bl-circ, .lk-cn-sharp .bl-poster-dot, .lk-cn-sharp .bl-kicker .dot, .lk-cn-sharp .bl-mkicker .dot { border-radius: 0; }
+.lk-cn-round { --acc-r: 999px; }
+.lk-cn-round .bl-chip, .lk-cn-round .bl-frame-note, .lk-cn-round .bl-count { border-radius: 999px; }
+.lk-cn-round .bl-item { border-radius: 48px; } .lk-cn-round .bl-bub { border-radius: 52px; }
+.lk-cn-round .bl-frame-ph { border-radius: 72px; } .lk-cn-round .bl-poster-bar { border-radius: 999px; }
+
+/* alignment */
+.lk-al-center .bl-bottom, .lk-al-center .bl-band-box, .lk-al-center .bl-car-mid, .lk-al-center .bl-stack, .lk-al-center .bl-lines, .lk-al-center .bl-end { text-align: center; align-items: center; }
+.lk-al-center .bl-frame-h, .lk-al-center .bl-body > .bl-h, .lk-al-center .bl-body .bl-h, .lk-al-center .bl-poster-on, .lk-al-center .bl-poster-small { text-align: center; }
+.lk-al-center .bl-body { align-items: center; }
+.lk-al-center .bl-items { align-self: stretch; }
+.lk-al-center .bl-bar { justify-content: center; }
+.lk-al-center .bl-body > div:not(.bl-items):not(.bl-bub) { text-align: center; }
+.lk-al-center .bl-chip { left: 50%; transform: translateX(-50%); }
+.lk-al-center .bl-end img { align-self: center; }
+
+/* photo treatment */
+.lk-ph-warm .bl-fill { filter: sepia(.28) saturate(1.12) contrast(1.04) brightness(1.03); }
+.lk-ph-vivid .bl-fill { filter: saturate(1.35) contrast(1.1); }
+.lk-ph-mono .bl-fill { filter: grayscale(1) contrast(1.14); }
+.lk-ph-duotone .bl-fill { filter: grayscale(1) contrast(1.2) brightness(1.06); }
+.lk-ph-duotone .bl-tint { display: block; background: var(--p); mix-blend-mode: color; opacity: .9; }
+.lk-ph-duotone .bl-ph-wait + .bl-tint { display: none; }
+
+/* brand-colour background for graphic posts */
+.bl-colour { background: var(--p); color: var(--on-p); --muted: color-mix(in srgb, var(--on-p) 78%, var(--p)); --card: color-mix(in srgb, var(--on-p) 10%, transparent); --cardline: color-mix(in srgb, var(--on-p) 22%, transparent); --gridline: color-mix(in srgb, var(--on-p) 9%, transparent); }
+.bl-colour .bl-kicker { color: inherit; } .bl-colour .bl-kicker .dot { background: var(--on-p); }
+.bl-colour .bl-big { color: inherit; }
+.bl-colour .bl-bub.me { background: var(--dark); color: #fff; }
+.bl-colour .bl-h { line-height: 1.08; }
+.bl-post.lk-em-color.bl-colour .acc, .bl-post.lk-em-underline.bl-colour .acc { color: inherit; text-decoration: underline; text-decoration-color: currentColor; text-decoration-thickness: .1em; text-underline-offset: .12em; background: none; padding: 0; }
+.bl-post.lk-em-highlight.bl-colour .acc { background: var(--dark); color: var(--light); }
+.bl-post.lk-em-italic.bl-colour .acc { color: inherit; }
+
+/* texture on graphic posts */
+.lk-tx-none .bl-grid { display: none; }
+.lk-tx-dots .bl-grid { background-image: radial-gradient(circle, color-mix(in srgb, currentColor 14%, transparent) 3px, transparent 3.5px); background-size: 44px 44px; }
+.lk-tx-lines .bl-grid { background-image: repeating-linear-gradient(135deg, var(--gridline) 0 3px, transparent 3px 34px); background-size: auto; }
+.lk-tx-grain .bl-grid { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E"); background-size: 240px 240px; opacity: .5; mix-blend-mode: overlay; }
+
+/* labels and kickers */
+.lk-lb-outline .bl-chip { background: transparent; border: 3px solid currentColor; padding: 7px 16px; }
+.lk-lb-outline .bl-chip-p, .lk-lb-outline .bl-chip-dark { color: #fff; }
+.lk-lb-outline .bl-chip-live { background: transparent; }
+.lk-lb-outline .bl-kicker .dot, .lk-lb-outline .bl-mkicker .dot { background: transparent; border: 4px solid var(--p); }
+.lk-lb-plain .bl-chip { background: none; padding: 0; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,.45); }
+.lk-lb-plain .bl-kicker .dot, .lk-lb-plain .bl-mkicker .dot { display: none; }
+.lk-lb-plain .bl-kicker { letter-spacing: 3px; }
+
+/* logo at the top */
+.lk-logo-top .bl-foot { top: 52px; bottom: auto; }
+.lk-logo-top .bl-chip, .lk-logo-top .bl-mkicker { top: 140px; }
+.lk-logo-top .bl-count { top: 140px; }
+.lk-logo-top .bl-body { padding-top: 150px; padding-bottom: 90px; }
+.lk-logo-top .bl-bottom { bottom: 90px; }
+.lk-logo-top .bl-frame-h { top: 140px; }
+.lk-logo-top.bl-frame .bl-frame-ph { top: 420px; height: 840px; }
+.lk-logo-top .bl-frame-note { top: 1170px; }
+.lk-logo-top .bl-circ { top: 140px; }
+.lk-logo-top .bl-poster-big { top: 150px; } .lk-logo-top .bl-poster-dot { top: 160px; } .lk-logo-top .bl-poster-bar { top: 380px; }
+.lk-logo-top .bl-poster-on { top: 860px; } .lk-logo-top .bl-poster-small { top: 1090px; }
+.lk-logo-top .bl-lines { bottom: 140px; }
+.lk-logo-top .bl-band-box { padding-bottom: 40px; }

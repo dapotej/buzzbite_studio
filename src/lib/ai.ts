@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import { recordClaude } from "./usage";
-import { BrandProfileSchema, PostSpecSchema, TEMPLATES, TEMPLATE_IDS, TrendReportSchema, type BrandProfile, type Post } from "./types";
+import { BrandProfileSchema, LOOK_OPTIONS, LookSchema, PostSpecSchema, TEMPLATES, TEMPLATE_IDS, TrendReportSchema, type BrandProfile, type Look, type Post } from "./types";
 
 const MODEL = "claude-opus-5-5";
 const client = new Anthropic();
@@ -57,7 +57,22 @@ async function structured<T extends z.ZodType>(opts: {
   }
 }
 
-const brandBrief = (b: BrandProfile) => JSON.stringify(b, null, 2);
+// The look is handled by brandStyle below, so it stays out of the profile Claude reads.
+const brandBrief = ({ look: _look, ...b }: BrandProfile) => JSON.stringify(b, null, 2);
+
+/** This brand's own design and headline habits, so its posts don't read or look like anyone else's. */
+function brandStyle(b: BrandProfile): string {
+  const l = b.look;
+  const out = ["This brand's style (follow it; it is what makes the brand's feed its own):"];
+  if (l.templates.length) out.push(`- Favourite designs, best first: ${l.templates.join(", ")}. Use these for about two thirds of posts; use others now and then for variety.`);
+  if (l.headlines.trim()) out.push(`- Headlines: ${l.headlines.trim()}`);
+  out.push(l.emphasis === "none"
+    ? "- Never wrap words in *asterisks*: this brand's headlines have no highlighted phrase."
+    : "- Highlight a key phrase with *asterisks* only where it earns it, in about half the headlines at most. Vary headline shapes: not every headline is a statement followed by a highlighted twist.");
+  if (l.type === "caps") out.push("- Headlines are set in capitals, so keep them especially short.");
+  if (l.spacing === "airy") out.push("- The design is calm and spacious: prefer fewer words and quieter headlines.");
+  return out.join("\n");
+}
 
 const VOICE_RULES = `Writing rules:
 - Plain, specific, confident. Short sentences.
@@ -103,9 +118,34 @@ export async function draftBrandProfile(name: string, source: string): Promise<B
       "(usually saturated, used often, or the theme colour), dark and light are the site's darkest text/background and lightest background colours, and supporting are " +
       "other brand colours from the list; ignore greys used only for borders. Use the site's fonts when they are Google Fonts; otherwise pick the closest Google Fonts family. " +
       "Take the voice from how the website actually writes. " +
-      "imageStyle is art direction for AI-generated photos: places, people, light and mood that suit the brand.",
+      "imageStyle is art direction for AI-generated photos: places, people, light and mood that suit the brand.\n\n" + LOOK_GUIDE,
     prompt: `Business name: ${name}\n\nSource material:\n<source>\n${source}\n</source>`,
     schema: BrandProfileSchema,
+  });
+}
+
+const LOOK_GUIDE =
+  "look is the brand's visual system for posts, beyond colours and fonts. Every business on this platform gets posts made from the same set of designs, " +
+  "so the look is what makes this brand's feed recognisably its own and different from other brands. Choose each setting from the brand's character, " +
+  "industry and audience, and from the website's own design where design signals are given (rounded or square buttons, uppercase navigation, " +
+  "serif or sans, busy or minimal, photo-led or graphic). Do not default to bold, highlighted, left-aligned, rounded and grid together: pick what fits. " +
+  "A law firm or private bank might be editorial, no or underline emphasis, square corners, mono or natural photos, plain labels, airy. " +
+  "A youth brand might be caps, highlight, round corners, vivid, dots, solid labels, bold. A hospitality brand might be light type, italic, warm photos, grain, airy. " +
+  "templates: the 4-8 designs that suit what this brand has to show (photo-led brands lean on photos and video; " +
+  "expertise-led brands on statements, lists and carousels; products with numbers on stat designs). " +
+  "headlines: the brand's own headline habit in one or two sentences, e.g. 'Plain, factual statements with one number; no questions or puns' or " +
+  "'Warm, conversational questions to the reader; no highlighted phrase'.";
+
+/** Picks a look for an existing brand: its visual system and headline habits. */
+export async function suggestLook(brand: BrandProfile, avoid?: Look): Promise<Look> {
+  return structured({
+    action: "brand look",
+    system: "You are an art director setting the visual system for a brand's social media posts.\n\n" + LOOK_GUIDE + "\n\n" +
+      `Settings and what they mean:\n${(Object.keys(LOOK_OPTIONS) as (keyof typeof LOOK_OPTIONS)[]).map((k) => `- ${k}: ${Object.entries(LOOK_OPTIONS[k]).map(([v, label]) => `${v} (${label})`).join(", ")}`).join("\n")}\n` +
+      `Designs: ${TEMPLATE_IDS.map((t) => `${t} (${TEMPLATES[t].guide})`).join("; ")}`,
+    prompt: `Brand profile:\n${brandBrief(brand)}${avoid ? `\n\nThe owner wants something different from the current look, so change most settings:\n${JSON.stringify(avoid)}` : ""}`,
+    schema: LookSchema,
+    effort: "low",
   });
 }
 
@@ -120,14 +160,16 @@ export async function planPosts(
     action: "plan posts",
     system:
       "You are the social media lead for a brand on LinkedIn and Instagram. You plan and write finished posts that the owner only needs to approve.\n\n" +
-      VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES,
+      VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES + "\n\n" + brandStyle(brand),
     prompt: `Brand profile:\n${brandBrief(brand)}
 
 Today is ${context.today}. Write one finished post for each of these publish dates: ${dates.join(", ")}.
 
 Planning rules:
 - Spread posts across the brand's pillars; tie posts to the season, holidays and events near their date where it fits the audience.
-- Visual mix: about half photo templates (photo, photo_band, photo_frame, photo_stat), about a fifth video, about one carousel a week (for educational or step-by-step topics), about one reel a fortnight (for stories, launches and quick tips worth narrating), the rest graphics (statement, stat, list, chat, poster). Never use the same template on two consecutive dates.
+- Visual mix: ${brand.look.templates.length
+    ? `lean on the brand's favourite designs (${brand.look.templates.join(", ")}), with others for variety`
+    : "about half photo templates (photo, photo_band, photo_frame, photo_stat), about a fifth video, the rest graphics (statement, stat, list, chat, poster)"}; about one carousel a week (for educational or step-by-step topics) and one reel a fortnight (for stories, launches and quick tips worth narrating). Never use the same template on two consecutive dates.
 - Each post must say something different. Do not repeat these recent posts:
 ${context.recentTitles.slice(0, 40).map((t) => `  - ${t}`).join("\n") || "  (none yet)"}
 ${context.trends ? `\nWhat is happening now (from today's trend research):\n${context.trends}` : ""}`,
@@ -143,7 +185,7 @@ ${context.trends ? `\nWhat is happening now (from today's trend research):\n${co
 export async function draftOne(brand: BrandProfile, brief: string, date: string, avoidTemplate?: string): Promise<PostDraft> {
   return structured({
     action: "draft post",
-    system: "You are the social media lead for a brand. Turn the brief into one finished post.\n\n" + VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES,
+    system: "You are the social media lead for a brand. Turn the brief into one finished post.\n\n" + VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES + "\n\n" + brandStyle(brand),
     prompt: `Brand profile:\n${brandBrief(brand)}\n\nPublish date: ${date}\nBrief: ${brief}${avoidTemplate ? `\nUse a different template from "${avoidTemplate}".` : ""}`,
     schema: PostDraftSchema,
   });
@@ -161,7 +203,7 @@ export async function revisePost(brand: BrandProfile, post: Pick<Post, "title" |
     system:
       "You revise a finished social post for a brand. Apply the owner's request and change nothing else. " +
       "If they ask for a new photo or the image no longer suits the post, write a new imagePrompt and set newPhoto true.\n\n" +
-      VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES,
+      VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES + "\n\n" + brandStyle(brand),
     prompt: `Brand profile:\n${brandBrief(brand)}\n\nCurrent post:\n${JSON.stringify({ title: post.title, pillar: post.pillar, spec, linkedin: post.linkedin, instagram: post.instagram }, null, 2)}
 ${media ? "The post currently has a photo." : ""}${clip ? " It also has a video clip." : ""}
 
