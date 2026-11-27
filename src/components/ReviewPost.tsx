@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ScaledPost } from "./PostThumb";
 import { downloadBlob, exportMp4, exportPng, slidesPdf, slidesZip } from "@/lib/export";
-import { isVideoPost, type Brand, type Post } from "@/lib/types";
+import { filesReady, makePostFiles } from "@/lib/deliver";
+import { PLATFORM_NAMES, PLATFORMS, isVideoPost, type Brand, type Platform, type Post } from "@/lib/types";
 
 const fmt = (s: string | null) => (s ? new Date(s + "T12:00:00Z").toLocaleDateString("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }) : "No date");
 
@@ -18,6 +19,9 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
   const [exporting, setExporting] = useState<number | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const [slide, setSlide] = useState(0);
+  const [prep, setPrep] = useState<number | null>(null);
+  const connected = PLATFORMS.filter((x) => brand.social.accounts.some((a) => a.platform === x));
+  const autopost = connected.length > 0;
   useEffect(() => { setSlide(0); }, [post?.id]);
 
   useEffect(() => { setCaption(post?.[platform] ?? ""); }, [post, platform]);
@@ -40,20 +44,68 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
   const nextInQueue = () => strip.find((x) => x.id !== p.id && x.status === "review");
   const go = (id?: string) => router.push(id ? `/b/${brand.id}/review?post=${id}` : `/b/${brand.id}/review`);
 
-  async function patch(body: Record<string, unknown>) {
-    const res = await fetch(`/api/posts/${p.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Could not save.");
+  async function patch(body: Record<string, unknown>, id = p.id): Promise<Post> {
+    const res = await fetch(`/api/posts/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? "Could not save.");
+    return data as Post;
+  }
+  /** With accounts connected, approving makes the post's final files so it can be scheduled. */
+  async function approveOne(x: Post, onProgress: (f: number) => void): Promise<Post> {
+    if (autopost && !filesReady(brand, x)) await makePostFiles(brand, x, onProgress);
+    return patch({ status: "approved" }, x.id);
   }
   async function approve() {
-    setBusy("approve");
-    try { await patch({ status: "approved" }); const n = nextInQueue(); go(n?.id); router.refresh(); }
+    setBusy("approve"); setMessage("");
+    try {
+      const saved = await approveOne(p, setPrep);
+      if (saved.publishing.error) { setMessage(saved.publishing.error); router.refresh(); return; }
+      go(nextInQueue()?.id); router.refresh();
+    }
     catch (e) { setMessage(String(e instanceof Error ? e.message : e)); }
-    finally { setBusy(null); }
+    finally { setBusy(null); setPrep(null); }
   }
   async function approveAll() {
-    setBusy("all");
-    await fetch(`/api/brands/${brand.id}/approve-all`, { method: "POST" });
+    setBusy("all"); setMessage("");
+    if (!autopost) {
+      await fetch(`/api/brands/${brand.id}/approve-all`, { method: "POST" });
+    } else {
+      const queue = strip.filter((x) => x.status === "review");
+      const failed: string[] = [];
+      for (let i = 0; i < queue.length; i++) {
+        setMessage(`Preparing and scheduling post ${i + 1} of ${queue.length}… Keep this page open.`);
+        try {
+          const saved = await approveOne(queue[i], setPrep);
+          if (saved.publishing.error) failed.push(`${fmt(saved.publish_on)}: ${saved.publishing.error}`);
+        } catch (e) { failed.push(`${fmt(queue[i].publish_on)}: ${e instanceof Error ? e.message : "failed"}`); }
+      }
+      setPrep(null);
+      if (failed.length) { setBusy(null); setMessage(`Approved, but some posts were not scheduled. ${failed.join(" ")}`); router.refresh(); return; }
+    }
     setBusy(null); router.push(`/b/${brand.id}`); router.refresh();
+  }
+  async function publish(opts: { now?: boolean } = {}) {
+    setBusy(opts.now ? "now" : "schedule"); setMessage("");
+    try {
+      if (!filesReady(brand, p)) await makePostFiles(brand, p, setPrep);
+      const res = await fetch(`/api/posts/${p.id}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(opts) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not schedule the post.");
+      if (data.publishing?.error) setMessage(data.publishing.error);
+      router.refresh();
+    } catch (e) { setMessage(e instanceof Error ? e.message : "Could not schedule the post."); }
+    finally { setBusy(null); setPrep(null); }
+  }
+  async function unapprove() {
+    setBusy("unapprove");
+    try { await patch({ status: "review" }); router.refresh(); } catch (e) { setMessage(e instanceof Error ? e.message : "Could not cancel."); }
+    finally { setBusy(null); }
+  }
+  async function toggleTarget(x: Platform) {
+    const cur = p.publishing.targets ?? connected;
+    const next = cur.includes(x) ? cur.filter((t) => t !== x) : [...cur, x];
+    if (!next.length) return setMessage("Choose at least one place to post.");
+    try { await patch({ targets: next }); router.refresh(); } catch (e) { setMessage(e instanceof Error ? e.message : "Could not save."); }
   }
   async function revise(body: { action?: string; instruction?: string }, label: string) {
     setBusy(label); setMessage("");
@@ -165,8 +217,8 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
         <div className="panel">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <span className="chip">{fmt(p.publish_on)} · {brand.settings.time}</span>
-            <span className={`chip ${p.status === "approved" ? "chip-ok" : making ? "chip-making" : "chip-wait"}`}>
-              {p.status === "approved" ? "Approved" : making ? "Creating photo or video…" : "To review"}
+            <span className={`chip ${p.status === "approved" || p.status === "posted" ? "chip-ok" : making ? "chip-making" : "chip-wait"}`}>
+              {p.status === "posted" ? "Posted" : p.status === "approved" ? (p.publishing.state === "scheduled" ? "Scheduled" : "Approved") : making ? "Creating photo or video…" : "To review"}
             </span>
           </div>
           <h2 style={{ fontSize: 23 }}>{p.title || p.spec.headline.replace(/\*/g, "")}</h2>
@@ -187,11 +239,13 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
           </div>
           <textarea className="caption" aria-label={`${platform} caption`} value={caption} onChange={(e) => setCaption(e.target.value)} onBlur={saveCaption} rows={9} />
           <div className="decide">
-            <button className="btn btn-ok btn-lg" type="button" onClick={approve} disabled={busy !== null || p.status === "approved"}>
-              {p.status === "approved" ? "Approved" : busy === "approve" ? "Approving…" : "Approve"}
+            <button className="btn btn-ok btn-lg" type="button" onClick={approve} disabled={busy !== null || making || p.status === "approved" || p.status === "posted"}>
+              {p.status === "posted" ? "Posted" : p.status === "approved" ? (autopost && p.publishing.state === "scheduled" ? "Scheduled" : "Approved")
+                : busy === "approve" ? (prep !== null ? `Preparing ${Math.round(prep * 100)}%` : "Approving…") : autopost ? "Approve & schedule" : "Approve"}
             </button>
             <button className="btn btn-lg" type="button" onClick={() => go(nextInQueue()?.id)} disabled={!nextInQueue()}>Next post</button>
           </div>
+          <PublishPanel brand={brand} post={p} connected={connected} busy={busy} prep={prep} onToggle={toggleTarget} onPublish={publish} onUnapprove={unapprove} />
           <div className="quick">
             {[["new_photo", "New photo"], ["make_video", "Make it a video"], ["make_carousel", "Make it a carousel"], ["shorter", "Shorter caption"], ["different_design", "Different design"]].filter(([a]) => !(a === "make_carousel" && p.spec.template === "carousel") && !(a === "make_video" && isVideoPost(p.spec))).map(([a, label]) => (
               <button key={a} type="button" disabled={busy !== null || making} onClick={() => revise({ action: a }, a)}>{busy === a ? "Working…" : label}</button>
@@ -220,6 +274,61 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PublishPanel({ brand, post: p, connected, busy, prep, onToggle, onPublish, onUnapprove }: {
+  brand: Brand; post: Post; connected: Platform[]; busy: string | null; prep: number | null;
+  onToggle: (x: Platform) => void; onPublish: (opts?: { now?: boolean }) => void; onUnapprove: () => void;
+}) {
+  if (!connected.length) {
+    return <p className="small muted">To post automatically, connect Instagram or LinkedIn in the <Link href={`/b/${brand.id}/kit#accounts`}>Brand kit</Link>.</p>;
+  }
+  const pub = p.publishing;
+  const targets = pub.targets ?? connected;
+  const working = busy === "schedule" || busy === "now";
+  const pct = prep !== null ? ` ${Math.round(prep * 100)}%` : "";
+  const when = pub.scheduledFor ? `${fmt(pub.scheduledFor.slice(0, 10))} at ${pub.scheduledFor.slice(11, 16)}` : "";
+  return (
+    <div className="publish">
+      <div className="row" style={{ gap: 8 }}>
+        <span className="small" style={{ fontWeight: 600 }}>Post to</span>
+        {connected.map((x) => (
+          <button key={x} type="button" className="target" aria-pressed={targets.includes(x)} onClick={() => onToggle(x)} disabled={busy !== null || p.status === "posted"}>
+            {PLATFORM_NAMES[x]}
+          </button>
+        ))}
+      </div>
+      {p.status === "posted" || pub.state === "published" || pub.state === "partial" ? (
+        <p className="small">
+          Posted{pub.state === "partial" ? " to some platforms" : ""}.{" "}
+          {PLATFORMS.filter((x) => pub.urls[x]).map((x) => <a key={x} href={pub.urls[x]} target="_blank" rel="noreferrer" style={{ marginRight: 10 }}>View on {PLATFORM_NAMES[x]} ↗</a>)}
+          {pub.error && <span className="error"> {pub.error}</span>}
+        </p>
+      ) : p.status !== "approved" ? (
+        <p className="small muted">Approving schedules it for {fmt(p.publish_on)} at {brand.settings.time}.</p>
+      ) : pub.state === "failed" || pub.error ? (
+        <div className="issue" role="alert">
+          <span>{pub.error ?? "The post could not be published."}</span>
+          <span className="row" style={{ gap: 6 }}>
+            {!/passed/.test(pub.error ?? "") && <button className="btn" type="button" onClick={() => onPublish()} disabled={busy !== null}>{busy === "schedule" ? `Trying${pct}…` : "Try again"}</button>}
+            <button className="btn" type="button" onClick={() => onPublish({ now: true })} disabled={busy !== null}>{busy === "now" ? `Posting${pct}…` : "Post now"}</button>
+          </span>
+        </div>
+      ) : pub.state === "scheduled" ? (
+        <p className="small">
+          Scheduled for {when}.{" "}
+          <button className="linklike" type="button" onClick={onUnapprove} disabled={busy !== null}>{busy === "unapprove" ? "Cancelling…" : "Cancel"}</button>
+        </p>
+      ) : pub.state === "publishing" ? (
+        <p className="small">Posting now…</p>
+      ) : (
+        <div className="row" style={{ gap: 8 }}>
+          <span className="small muted">Approved, not scheduled yet.</span>
+          <button className="btn" type="button" onClick={() => onPublish()} disabled={busy !== null}>{working && busy === "schedule" ? `Scheduling${pct}…` : "Schedule"}</button>
+        </div>
+      )}
     </div>
   );
 }

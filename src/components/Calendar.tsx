@@ -14,6 +14,16 @@ const fmt = (s: string, o: Intl.DateTimeFormatOptions) => new Date(s + "T12:00:0
 const STATUS: Record<Post["status"], [string, string]> = {
   making: ["chip-making", "Creating…"], review: ["chip-wait", "To review"], approved: ["chip-ok", "Approved"], posted: ["chip", "Posted"],
 };
+function chipFor(p: Post): [string, string] {
+  if (p.issue) return ["chip-issue", "Needs attention"];
+  if (p.status === "approved") {
+    if (p.publishing.state === "failed") return ["chip-fail", "Failed"];
+    if (p.publishing.error) return ["chip-fail", "Not scheduled"];
+    if (p.publishing.state === "scheduled") return ["chip-sched", "Scheduled"];
+    if (p.publishing.state === "publishing") return ["chip-sched", "Posting…"];
+  }
+  return STATUS[p.status];
+}
 
 export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthStart, monthEnd, gridStart, gridEnd }: {
   brand: Brand; posts: Post[]; ideas: CalendarIdea[]; today: string; view: "month" | "week";
@@ -80,6 +90,19 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
     return m;
   }, [posts]);
   const making = posts.some((p) => p.status === "making");
+  // Pick up the results of posts that were due to go out, and keep checking while any are due today.
+  const dueNow = brand.social.accounts.length > 0 && posts.some((p) => (p.publishing.state === "scheduled" || p.publishing.state === "publishing") && p.publish_on !== null && p.publish_on <= today);
+  useEffect(() => {
+    if (!dueNow) return;
+    let stop = false;
+    const run = async () => {
+      const data = await fetch(`/api/brands/${brand.id}/sync`, { method: "POST" }).then((r) => r.json()).catch(() => ({}));
+      if (!stop && data.changed) router.refresh();
+    };
+    run();
+    const t = setInterval(run, 60_000);
+    return () => { stop = true; clearInterval(t); };
+  }, [dueNow, brand.id, router]);
   const needsAttention = posts.filter((p) => p.issue).length;
 
   async function retryAll() {
@@ -219,10 +242,10 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
                     <span className="dnum">{fmt(date, { day: "numeric" })}{date.endsWith("-01") ? " " + fmt(date, { month: "short" }) : ""}</span>
                     {dayPosts.map((p) => (
                       <Link key={p.id} href={`/b/${brand.id}/review?post=${p.id}`} className={`cpost ${dragging === p.id ? "is-dragging" : ""}`} aria-label={p.title || "Post"}
-                        draggable onDragStart={(e) => { e.dataTransfer.setData("text/x-post", p.id); e.dataTransfer.effectAllowed = "move"; setDragging(p.id); }}
+                        draggable={p.status !== "posted"} onDragStart={(e) => { e.dataTransfer.setData("text/x-post", p.id); e.dataTransfer.effectAllowed = "move"; setDragging(p.id); }}
                         onDragEnd={() => { setDragging(null); setOverDay(null); }}>
                         <ScaledPost brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} animate={false} />
-                        <span className={`st chip ${p.issue ? "chip-issue" : STATUS[p.status][0]}`}>{p.issue ? "Needs attention" : STATUS[p.status][1]}</span>
+                        <span className={`st chip ${chipFor(p)[0]}`}>{chipFor(p)[1]}</span>
                       </Link>
                     ))}
                     {!dayPosts.length && planned && (

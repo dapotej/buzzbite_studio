@@ -5,6 +5,7 @@ import { getBrand, getPost, insertMedia, updatePost } from "@/lib/db";
 import { handle, notFound } from "@/lib/http";
 import { describeFalError, queueVideo } from "@/lib/media";
 import { startMedia } from "@/lib/pipeline";
+import { unschedulePost } from "@/lib/publish";
 import { TEMPLATES } from "@/lib/types";
 
 export const maxDuration = 120;
@@ -24,6 +25,12 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   if (!post) return notFound();
   const brand = await getBrand(post.brand_id);
   if (!brand) return notFound();
+  // A changed post needs approving again before it goes out.
+  if (post.status === "approved") {
+    await unschedulePost(post);
+    await updatePost(id, { status: "review" });
+    post.status = "review";
+  }
 
   // Turning a photo post into a video needs no rewrite: animate the photo it already has.
   if (action === "make_video") {

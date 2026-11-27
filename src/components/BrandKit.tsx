@@ -1,9 +1,9 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { logoToDataUrl, whiteVersion } from "./logo";
 import { ScaledPost } from "./PostThumb";
-import type { Brand, BrandProfile, PostSpec } from "@/lib/types";
+import { PLATFORM_NAMES, PLATFORMS, type Brand, type BrandProfile, type Platform, type PostSpec, type SocialAccount } from "@/lib/types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -81,6 +81,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
   const [logos, setLogos] = useState({ light: brand.logo_on_light, dark: brand.logo_on_dark });
   const [fonts, setFonts] = useState(p.fonts);
   const [time, setTime] = useState(brand.settings.time);
+  const [tz, setTz] = useState(brand.settings.tz);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
@@ -99,7 +100,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
     };
     setState("saving"); setError("");
     const res = await fetch(`/api/brands/${brand.id}`, { method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ profile, settings: { ...brand.settings, time }, logo_on_light: logos.light, logo_on_dark: logos.dark }) });
+      body: JSON.stringify({ profile, settings: { ...brand.settings, time, tz }, logo_on_light: logos.light, logo_on_dark: logos.dark }) });
     if (!res.ok) { setState("idle"); return setError((await res.json().catch(() => ({}))).error ?? "Could not save."); }
     setState("saved"); router.refresh(); setTimeout(() => setState("idle"), 2000);
   }
@@ -125,6 +126,8 @@ export function BrandKit({ brand }: { brand: Brand }) {
         <h2>Logo</h2>
         <LogoUpload colors={colors} light={logos.light} dark={logos.dark} onChange={setLogos} />
       </section>
+
+      <SocialAccounts brand={brand} />
 
       <section className="card kit-look">
         <div className="stack">
@@ -161,7 +164,14 @@ export function BrandKit({ brand }: { brand: Brand }) {
 
       <section className="card stack">
         <h2>Posting</h2>
-        <label className="field" style={{ maxWidth: 200 }}>Posting time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+        <div className="row" style={{ alignItems: "flex-end" }}>
+          <label className="field" style={{ maxWidth: 200 }}>Posting time<input type="time" value={time} onChange={(e) => setTime(e.target.value)} /></label>
+          <label className="field" style={{ minWidth: 220 }}>Time zone
+            <select value={tz} onChange={(e) => setTz(e.target.value)}>
+              {[...new Set([tz, ...ZONES])].map((z) => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
+            </select>
+          </label>
+        </div>
         <p className="small muted">Choose posting days on the calendar.</p>
       </section>
 
@@ -174,5 +184,79 @@ export function BrandKit({ brand }: { brand: Brand }) {
         </div>
       </section>
     </form>
+  );
+}
+
+const ZONES = ["Africa/Lagos", "Africa/Accra", "Africa/Nairobi", "Africa/Johannesburg", "Africa/Cairo", "Europe/London", "Europe/Paris", "America/New_York", "America/Chicago", "America/Los_Angeles", "Asia/Dubai", "Asia/Kolkata", "Asia/Singapore", "Australia/Sydney", "UTC"];
+
+/** Instagram and LinkedIn accounts posts go out to, connected through the posting service. */
+function SocialAccounts({ brand }: { brand: Brand }) {
+  const [accounts, setAccounts] = useState<SocialAccount[]>(brand.social.accounts);
+  const [configured, setConfigured] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    const back = new URLSearchParams(window.location.search);
+    if (back.get("error")) setError(back.get("error_message") || `${back.get("platform") ?? "The account"} could not be connected (${back.get("error")}).`);
+    fetch(`/api/brands/${brand.id}/social`).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return setError(data.error ?? "Could not load connected accounts.");
+      setConfigured(data.configured); setAccounts(data.accounts);
+      const done = back.get("connected") as Platform | null;
+      if (done && data.accounts.some((a: SocialAccount) => a.platform === done)) setNote(`${PLATFORM_NAMES[done]} is connected. Approved posts now go out automatically.`);
+    }).catch(() => setError("Could not load connected accounts."));
+  }, [brand.id]);
+
+  async function connect(platform: Platform) {
+    setBusy(platform); setError("");
+    const res = await fetch(`/api/brands/${brand.id}/social/connect`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ platform }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { setBusy(null); return setError(data.error ?? "Could not start connecting."); }
+    window.location.href = data.url;
+  }
+  async function disconnect(a: SocialAccount) {
+    if (!window.confirm(`Disconnect ${a.name}? Scheduled posts to it will not go out.`)) return;
+    setBusy(a.id); setError("");
+    const res = await fetch(`/api/brands/${brand.id}/social?account=${encodeURIComponent(a.id)}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setBusy(null);
+    if (!res.ok) return setError(data.error ?? "Could not disconnect.");
+    setAccounts(data.accounts);
+  }
+
+  return (
+    <section className="card stack" id="accounts">
+      <h2>Social accounts</h2>
+      {!configured ? (
+        <p className="small muted">Auto-posting is not switched on yet. Add your Zernio API key as ZERNIO_API_KEY in Vercel, then redeploy.</p>
+      ) : (
+        <>
+          <p className="small muted">Approved posts go out to these accounts on their date, at the posting time below. Instagram needs a Business or Creator account.</p>
+          {accounts.length > 0 && (
+            <div className="accounts">
+              {accounts.map((a) => (
+                <div className="account" key={a.id}>
+                  {a.picture ? <img src={a.picture} alt="" /> : <span className="av" aria-hidden="true">{a.name.slice(0, 1)}</span>}
+                  <div className="who"><strong>{a.name}</strong><span className="small muted">{PLATFORM_NAMES[a.platform]}{a.username ? ` · @${a.username}` : ""}</span></div>
+                  <span className="spacer" />
+                  <button className="btn btn-ghost" type="button" onClick={() => disconnect(a)} disabled={busy !== null}>{busy === a.id ? "Disconnecting…" : "Disconnect"}</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="row">
+            {PLATFORMS.map((p) => (
+              <button key={p} className="btn" type="button" onClick={() => connect(p)} disabled={busy !== null}>
+                {busy === p ? "Opening…" : accounts.some((a) => a.platform === p) ? `Reconnect ${PLATFORM_NAMES[p]}` : `Connect ${PLATFORM_NAMES[p]}`}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {note && <p className="notice" role="status">{note}</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+    </section>
   );
 }

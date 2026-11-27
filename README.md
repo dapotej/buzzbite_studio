@@ -29,6 +29,18 @@ Photo, Photo + band, Framed photo, Photo + figure, Video, Statement, Big number,
 
 `/api/brands/[id]/fill` asks Claude to write finished posts for up to 7 empty posting days at a time (the calendar calls it until the month is full). Posts that need a photo are saved as "making" and their photo is queued on fal.ai. `/api/brands/[id]/advance` (polled by the calendar and review screens) collects finished photos, queues clips for video posts, and moves posts to "review".
 
+## Auto-posting
+
+Buzzbite posts approved content to Instagram and LinkedIn through [Zernio](https://zernio.com), which holds the
+connected accounts and publishes at the scheduled time (so the app needs no scheduler of its own).
+
+- **Connect:** Brand kit → Social accounts. Each brand gets its own Zernio profile (`externalId` = brand id).
+- **Approve & schedule:** the browser renders the final files off-screen (`src/lib/deliver.tsx`): a JPEG, or carousel
+  slides plus a PDF for LinkedIn, or an MP4. It uploads them to Vercel Blob, and the server books the post for its date at the
+  brand's posting time and time zone (`src/lib/publish.ts`, `src/lib/zernio.ts`).
+- **Changes:** moving a post re-books it; revising or un-approving cancels the booking; deleting cancels it.
+- **Results:** the calendar checks due posts and shows Scheduled, Posted (with links) or Failed (with Try again / Post now).
+
 ## Running locally
 
 ```bash
@@ -38,7 +50,7 @@ npm run db:migrate           # creates the tables (safe to re-run)
 npm run dev
 ```
 
-Environment variables: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PASSWORD`, `AUTH_SECRET`, `BLOB_READ_WRITE_TOKEN`, `FAL_KEY` (see `.env.example`).
+Environment variables: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PASSWORD`, `AUTH_SECRET`, `BLOB_READ_WRITE_TOKEN`, `FAL_KEY`, and `ZERNIO_API_KEY` for auto-posting (see `.env.example`).
 
 ## Roadmap to a product
 

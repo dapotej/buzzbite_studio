@@ -27,7 +27,41 @@ export const BrandProfileSchema = z.object({
 export type BrandProfile = z.infer<typeof BrandProfileSchema>;
 
 /** The posting plan: which weekdays to post on (0 = Monday) and at what time. */
-export type BrandSettings = { days: number[]; time: string };
+export type BrandSettings = { days: number[]; time: string; /** IANA time zone posts go out in. */ tz: string };
+
+export const PLATFORMS = ["instagram", "linkedin"] as const;
+export type Platform = (typeof PLATFORMS)[number];
+export const PLATFORM_NAMES: Record<Platform, string> = { instagram: "Instagram", linkedin: "LinkedIn" };
+
+/** A connected social account (held by the posting service, Zernio). */
+export type SocialAccount = { id: string; platform: Platform; name: string; username: string; picture: string | null };
+export type BrandSocial = { profileId: string | null; accounts: SocialAccount[] };
+
+/** A final file made from a post when it is approved, hosted on Vercel Blob. */
+export type PublishFile = { url: string; type: "image" | "video" | "document"; title?: string };
+export type PublishState = "scheduled" | "publishing" | "published" | "partial" | "failed" | "cancelled";
+export type Publishing = {
+  /** Platforms this post goes to. Null means every connected account. */
+  targets: Platform[] | null;
+  files: Record<Platform, PublishFile[]> | null;
+  /** Fingerprint of the design the files were made from; files are stale when it changes. */
+  filesKey: string | null;
+  zernioId: string | null;
+  state: PublishState | null;
+  error: string | null;
+  urls: Partial<Record<Platform, string>>;
+  scheduledFor: string | null;
+};
+export const EMPTY_PUBLISHING: Publishing = { targets: null, files: null, filesKey: null, zernioId: null, state: null, error: null, urls: {}, scheduledFor: null };
+
+/** Fingerprint of everything that changes how a post looks, so files made from an older design are not posted. */
+export function designKey(spec: PostSpec, brandUpdatedAt: string): string {
+  const { media, clip, ...rest } = spec;
+  const text = JSON.stringify([rest, media?.url ?? null, clip?.url ?? null, brandUpdatedAt]);
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36) + text.length.toString(36);
+}
 
 export type Brand = {
   id: string;
@@ -36,6 +70,7 @@ export type Brand = {
   settings: BrandSettings;
   logo_on_light: string | null;
   logo_on_dark: string | null;
+  social: BrandSocial;
   created_at: string;
   updated_at: string;
 };
@@ -116,6 +151,7 @@ export type Post = {
   spec: PostSpec;
   linkedin: string;
   instagram: string;
+  publishing: Publishing;
   created_at: string;
   updated_at: string;
 };

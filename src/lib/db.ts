@@ -1,6 +1,6 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
-import type { Brand, BrandProfile, BrandSettings, Idea, Media, Post, PostSpec, PostStatus, TrendItem, TrendReport } from "./types";
+import { EMPTY_PUBLISHING, type Brand, type BrandProfile, type BrandSettings, type BrandSocial, type Idea, type Media, type Post, type PostSpec, type PostStatus, type Publishing, type TrendItem, type TrendReport } from "./types";
 
 function client() {
   const url = process.env.DATABASE_URL;
@@ -34,9 +34,10 @@ function toBrand(r: Row): Brand {
     id: r.id as string,
     name: r.name as string,
     profile: normalizeProfile(r.profile as BrandProfile),
-    settings: { days: Array.isArray(s.days) && s.days.length ? s.days : [0, 2, 4], time: s.time || "10:00" },
+    settings: { days: Array.isArray(s.days) && s.days.length ? s.days : [0, 2, 4], time: s.time || "10:00", tz: s.tz || "Africa/Lagos" },
     logo_on_light: (r.logo_on_light as string) ?? null,
     logo_on_dark: (r.logo_on_dark as string) ?? null,
+    social: { profileId: null, accounts: [], ...((r.social ?? {}) as Partial<BrandSocial>) },
     created_at: iso(r.created_at),
     updated_at: iso(r.updated_at),
   };
@@ -65,6 +66,7 @@ function toPost(r: Row): Post {
     spec: normalizeSpec(r.spec as Partial<PostSpec>),
     linkedin: r.linkedin as string,
     instagram: r.instagram as string,
+    publishing: { ...EMPTY_PUBLISHING, ...((r.publishing ?? {}) as Partial<Publishing>) },
     created_at: iso(r.created_at),
     updated_at: iso(r.updated_at),
   };
@@ -163,6 +165,22 @@ export async function updatePost(
     status = ${n.status}, publish_on = ${n.publish_on}, title = ${n.title}, pillar = ${n.pillar}, issue = ${n.issue}, updated_at = now()
     where id = ${id} returning *`;
   return toPost(rows[0]);
+}
+/** Saves auto-posting state without touching updated_at, which keys the post's design. */
+export async function setPublishing(id: string, patch: Partial<Publishing>): Promise<Post | null> {
+  const cur = await getPost(id);
+  if (!cur) return null;
+  const next = { ...cur.publishing, ...patch };
+  const rows = await client()`update posts set publishing = ${JSON.stringify(next)}::jsonb where id = ${id} returning *`;
+  return toPost(rows[0]);
+}
+/** Posts handed to the posting service that have not finished yet. */
+export async function listPostsInFlight(brandId: string): Promise<Post[]> {
+  return (await client()`select * from posts where brand_id = ${brandId} and publishing->>'zernioId' is not null
+    and publishing->>'state' in ('scheduled', 'publishing') order by publish_on`).map(toPost);
+}
+export async function setBrandSocial(id: string, social: BrandSocial): Promise<void> {
+  await client()`update brands set social = ${JSON.stringify(social)}::jsonb where id = ${id}`;
 }
 export async function setPostsStatus(ids: string[], status: PostStatus): Promise<void> {
   if (ids.length) await client()`update posts set status = ${status}, updated_at = now() where id = any(${ids})`;

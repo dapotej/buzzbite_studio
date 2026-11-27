@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       onBeforeGenerateToken: async (pathname) => {
         if (!/^brands\/[0-9a-f-]{36}\//.test(pathname)) throw new Error("Invalid upload path.");
         return {
-          allowedContentTypes: ["image/png", "image/jpeg", "image/webp", "video/mp4", "video/quicktime", "video/webm"],
+          allowedContentTypes: ["image/png", "image/jpeg", "image/webp", "video/mp4", "video/quicktime", "video/webm", "application/pdf"],
           maximumSizeInBytes: 200 * 1024 * 1024,
           addRandomSuffix: true,
         };

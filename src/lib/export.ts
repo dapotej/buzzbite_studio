@@ -1,5 +1,5 @@
 "use client";
-import { getFontEmbedCSS, toCanvas, toPng } from "html-to-image";
+import { getFontEmbedCSS, toCanvas, toJpeg, toPng } from "html-to-image";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 import { MOTION_SECONDS, POST_H, POST_W } from "@/templates/PostCanvas";
 
@@ -75,12 +75,13 @@ export async function videoSeconds(node: HTMLElement): Promise<number> {
   return Math.min(15, Math.max(3, Math.floor(video.duration || MOTION_SECONDS)));
 }
 
-export async function exportPng(node: HTMLElement): Promise<Blob> {
+export async function exportPng(node: HTMLElement, format: "png" | "jpeg" = "png"): Promise<Blob> {
   await document.fonts.ready;
   const css = await getFontEmbedCSS(node);
   const restore = await freezeVideos(node);
   try {
-    const url = await toPng(node, opts(css));
+    // Instagram only accepts JPEG photos.
+    const url = format === "jpeg" ? await toJpeg(node, { ...opts(css), quality: 0.93 }) : await toPng(node, opts(css));
     return (await fetch(url)).blob();
   } finally {
     restore();
@@ -183,12 +184,13 @@ export async function slidesZip(pngs: Blob[], base: string): Promise<Blob> {
   return new Blob([zipSync(files, { level: 0 }) as Uint8Array<ArrayBuffer>], { type: "application/zip" });
 }
 
-/** LinkedIn document carousel: one 1080×1350 page per slide. */
+/** LinkedIn document carousel: one 1080×1350 page per slide (PNG or JPEG slides). */
 export async function slidesPdf(pngs: Blob[]): Promise<Blob> {
   const { PDFDocument } = await import("pdf-lib");
   const pdf = await PDFDocument.create();
   for (const png of pngs) {
-    const img = await pdf.embedPng(new Uint8Array(await png.arrayBuffer()));
+    const bytes = new Uint8Array(await png.arrayBuffer());
+    const img = png.type === "image/jpeg" ? await pdf.embedJpg(bytes) : await pdf.embedPng(bytes);
     const page = pdf.addPage([POST_W, POST_H]);
     page.drawImage(img, { x: 0, y: 0, width: POST_W, height: POST_H });
   }
