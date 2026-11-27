@@ -88,3 +88,17 @@ alter table posts add column if not exists issue text;  -- why a photo or video 
 -- posts.publishing: { targets, files, filesKey, zernioId, state, error, urls, scheduledFor }
 alter table brands add column if not exists social jsonb;
 alter table posts add column if not exists publishing jsonb;
+
+-- v5: sign-ups from the website (waitlist, campaign enquiries, creators).
+create table if not exists leads (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null,              -- waitlist | campaign | creator
+  email text not null,
+  name text not null default '',
+  company text not null default '',
+  handle text not null default '',
+  message text not null default '',
+  source text not null default '',
+  created_at timestamptz not null default now()
+);
+create index if not exists leads_created on leads (created_at desc);

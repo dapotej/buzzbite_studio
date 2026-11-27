@@ -49,6 +49,7 @@ export function Shell({ brand, brands, current, reviewCount, children }: {
         </nav>
         <div className="side-foot">
           <span>Posts on {brand.settings.days.map((d) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d]).join(", ")} at {brand.settings.time}.</span>
+          <a href="/leads">Website sign-ups</a>
           <a href="/logout">Sign out</a>
         </div>
       </aside>

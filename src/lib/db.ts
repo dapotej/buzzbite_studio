@@ -252,3 +252,13 @@ export async function insertTrendReport(brandId: string, summary: string, items:
 export async function updateTrendItems(id: string, items: TrendItem[]): Promise<void> {
   await client()`update trend_reports set items = ${JSON.stringify(items)}::jsonb where id = ${id}`;
 }
+
+// ---------- leads (website sign-ups) ----------
+export type Lead = { id: string; kind: string; email: string; name: string; company: string; handle: string; message: string; source: string; created_at: string };
+export async function insertLead(l: Omit<Lead, "id" | "created_at">): Promise<void> {
+  await client()`insert into leads (kind, email, name, company, handle, message, source)
+    values (${l.kind}, ${l.email}, ${l.name}, ${l.company}, ${l.handle}, ${l.message}, ${l.source})`;
+}
+export async function listLeads(): Promise<Lead[]> {
+  return (await client()`select * from leads order by created_at desc limit 500`).map((r) => ({ ...(r as Lead), created_at: iso(r.created_at) }));
+}

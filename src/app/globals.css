@@ -245,3 +245,8 @@ button.slot-add:hover:not(:disabled) { border-color: var(--accent); color: var(-
 .edit-text { padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
 .edit-text .row > .field { flex: 1; min-width: 0; }
 .quick button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
+
+/* Website sign-ups */
+table.leads { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.leads th, table.leads td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.leads th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
