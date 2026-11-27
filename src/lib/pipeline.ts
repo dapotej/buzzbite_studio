@@ -117,3 +117,18 @@ export async function advance(brand: Brand): Promise<{ pending: number }> {
   }
   return { pending: still };
 }
+
+/** Tries again to make the photo, or the video clip, a post is missing. */
+export async function retryMedia(brand: Brand, post: Post): Promise<Post> {
+  if (post.spec.template === "video" && post.spec.media?.url && !post.spec.clip) {
+    try {
+      const job = await queueVideo(post.spec.motionPrompt || "Slow, subtle camera push-in with natural movement in the scene.", post.spec.media.url);
+      await insertMedia({ brand_id: brand.id, post_id: post.id, role: "video", kind: "video", status: "pending", source: "ai", url: null, description: "Animated photo", fal_endpoint: job.endpoint, fal_request_id: job.requestId });
+      return (await updatePost(post.id, { status: "making", issue: null }))!;
+    } catch (e) {
+      return (await updatePost(post.id, { issue: `The video could not be started. ${describeFalError(e)}` }))!;
+    }
+  }
+  const fresh = await updatePost(post.id, { spec: { ...post.spec, media: null, clip: null }, issue: null });
+  return startMedia(brand, fresh!);
+}

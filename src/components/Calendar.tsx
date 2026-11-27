@@ -48,6 +48,18 @@ export function Calendar({ brand, posts, today, view, monthStart, monthEnd, grid
     return m;
   }, [posts]);
   const making = posts.some((p) => p.status === "making");
+  const needsAttention = posts.filter((p) => p.issue).length;
+
+  async function retryAll() {
+    setBusy("retry"); setError("");
+    const res = await fetch(`/api/brands/${brand.id}/retry-all`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    setBusy(null);
+    if (!res.ok) return setError(data.error ?? "Could not try again.");
+    if (data.failed) setError(data.issue ?? "Some photos still could not be made.");
+    else setToast(`Trying again for ${data.retried} posts. Photos appear in a minute or two.`);
+    router.refresh();
+  }
   const toReview = posts.filter((p) => p.status === "review").length;
   // Days from today (or the month start) to the month end that still need a post.
   const fillFrom = monthStart > today ? monthStart : addDays(today, 1);
@@ -128,6 +140,13 @@ export function Calendar({ brand, posts, today, view, monthStart, monthEnd, grid
           {toReview > 0 && <Link className="btn btn-ink" href={`/b/${brand.id}/review`}>Review {toReview} posts</Link>}
         </div>
       </div>
+
+      {needsAttention > 0 && (
+        <div className="issue" role="alert" style={{ flexDirection: "row", alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ flex: 1, minWidth: 220 }}>{needsAttention} post{needsAttention === 1 ? "" : "s"} could not get a photo or video. Open one to see why, or try them all again.</span>
+          <button className="btn" type="button" onClick={retryAll} disabled={busy !== null}>{busy === "retry" ? "Trying again…" : "Try all again"}</button>
+        </div>
+      )}
 
       <section className="pilot" aria-label="Posting plan">
         <div>
