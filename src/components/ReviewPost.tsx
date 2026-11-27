@@ -17,6 +17,8 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
   const [busy, setBusy] = useState<string | null>(null);
   const [ask, setAsk] = useState("");
   const [editing, setEditing] = useState(false);
+  const touchX = useRef(0);
+  const touchY = useRef(0);
   const [preview, setPreview] = useState<PostSpec | null>(null);
   useEffect(() => { setPreview(null); setEditing(false); }, [post?.id]);
   const [message, setMessage] = useState("");
@@ -204,6 +206,12 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
   }
 
   const making = p.status === "making";
+  const approveDisabled = busy !== null || making || p.status === "approved" || p.status === "posted";
+  const approveLabel = p.status === "posted" ? "Posted" : p.status === "approved" ? (autopost && p.publishing.state === "scheduled" ? "Scheduled" : "Approved")
+    : busy === "approve" ? (prep !== null ? `Preparing ${Math.round(prep * 100)}%` : "Approving…") : autopost ? "Approve & schedule" : "Approve";
+  // Swipe left or right on the post to move through the queue (phones).
+  const idx = strip.findIndex((x) => x.id === p.id);
+  const neighbour = (d: 1 | -1) => strip[idx + d]?.id;
   return (
     <div className="wrap">
       <div className="head">
@@ -226,7 +234,17 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
       )}
 
       <div className="review">
-        <div className="stage">
+        <div className="stage" onTouchStart={(e) => { touchX.current = e.touches[0].clientX; touchY.current = e.touches[0].clientY; }}
+          onTouchEnd={(e) => {
+            const dx = e.changedTouches[0].clientX - touchX.current, dy = e.changedTouches[0].clientY - touchY.current;
+            if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5 || busy !== null) return;
+            if (p.spec.template === "carousel" && p.spec.slides.length > 1) {
+              const next = slide + (dx < 0 ? 1 : -1);
+              if (next >= 0 && next < p.spec.slides.length) return setSlide(next);
+            }
+            const id = neighbour(dx < 0 ? 1 : -1);
+            if (id) go(id);
+          }}>
           <div className="stage-col">
             <ScaledPost key={p.id + p.updated_at} brand={brand.profile} spec={preview ?? p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} canvasRef={canvasRef} slide={slide} badge={false} />
             {p.spec.template === "carousel" && p.spec.slides.length > 1 && (
@@ -263,10 +281,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
           </div>
           <textarea className="caption" aria-label={`${platform} caption`} value={caption} onChange={(e) => setCaption(e.target.value)} onBlur={saveCaption} rows={9} />
           <div className="decide">
-            <button className="btn btn-ok btn-lg" type="button" onClick={approve} disabled={busy !== null || making || p.status === "approved" || p.status === "posted"}>
-              {p.status === "posted" ? "Posted" : p.status === "approved" ? (autopost && p.publishing.state === "scheduled" ? "Scheduled" : "Approved")
-                : busy === "approve" ? (prep !== null ? `Preparing ${Math.round(prep * 100)}%` : "Approving…") : autopost ? "Approve & schedule" : "Approve"}
-            </button>
+            <button className="btn btn-ok btn-lg" type="button" onClick={approve} disabled={approveDisabled}>{approveLabel}</button>
             <button className="btn btn-lg" type="button" onClick={() => go(nextInQueue()?.id)} disabled={!nextInQueue()}>Next post</button>
           </div>
           <PublishPanel brand={brand} post={p} connected={connected} busy={busy} prep={prep} onToggle={toggleTarget} onPublish={publish} onUnapprove={unapprove} />
@@ -309,6 +324,11 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
             <button className="btn btn-ghost btn-danger" type="button" onClick={remove}>{busy === "confirm-delete" ? "Click again to delete" : "Delete"}</button>
           </div>
         </div>
+      </div>
+      {/* Phones: the decision stays under your thumb while you look at the post. */}
+      <div className="mobile-actions">
+        <button className="btn btn-ok btn-lg" type="button" onClick={approve} disabled={approveDisabled}>{approveLabel}</button>
+        <button className="btn btn-lg" type="button" onClick={() => go(nextInQueue()?.id)} disabled={!nextInQueue()} aria-label="Next post">Next</button>
       </div>
     </div>
   );

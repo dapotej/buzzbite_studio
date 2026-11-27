@@ -13,6 +13,8 @@ const ICONS: Record<Section, React.ReactNode> = {
   kit: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" /></svg>,
 };
 
+const TAB_LABELS: Partial<Record<Section, string>> = { review: "Review", trends: "Trends", media: "Media", kit: "Brand" };
+
 export function BrandDot({ brand }: { brand: Brand }) {
   const c = brand.profile.colors.primary;
   return <span className="bdot" style={{ background: c, color: inkOn(c, "#111") }}>{brand.name.slice(0, 1).toUpperCase()}</span>;
@@ -37,6 +39,10 @@ export function Shell({ brand, brands, current, reviewCount, children }: {
           <div className="menu">
             {brands.filter((b) => b.id !== brand.id).map((b) => <Link key={b.id} href={`/b/${b.id}`}><BrandDot brand={b} />{b.name}</Link>)}
             <Link href="/setup"><span className="bdot" style={{ background: "var(--sunk)" }}>+</span>Add a brand</Link>
+            <div className="menu-extra">
+              <a href="/leads">Website sign-ups</a>
+              <a href="/logout">Sign out</a>
+            </div>
           </div>
         </details>
         <nav className="nav" aria-label="Sections">
@@ -54,6 +60,15 @@ export function Shell({ brand, brands, current, reviewCount, children }: {
         </div>
       </aside>
       <main className="main" id="main">{children}</main>
+      {/* Phones: the sections as a tab bar at the bottom of the screen. */}
+      <nav className="tabs" aria-label="Sections">
+        {links.map(([key, href, label]) => (
+          <Link key={key} href={href} aria-current={key === current ? "page" : undefined}>
+            <span className="tab-icon">{ICONS[key]}{key === "review" && reviewCount > 0 && <span className="tab-count">{reviewCount}</span>}</span>
+            {TAB_LABELS[key] ?? label}
+          </Link>
+        ))}
+      </nav>
     </div>
   );
 }

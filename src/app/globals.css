@@ -250,3 +250,66 @@ button.slot-add:hover:not(:disabled) { border-color: var(--accent); color: var(-
 table.leads { width: 100%; border-collapse: collapse; font-size: 14px; }
 table.leads th, table.leads td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
 table.leads th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+/* ---------- Phones ---------- */
+.tabs { display: none; }
+.agenda { display: none; }
+.brand-pick .menu-extra { display: none; }
+@media (max-width: 900px) {
+  /* Slim top bar: logo and brand switcher only; sections move to the tab bar. */
+  .side { position: sticky; top: 0; z-index: 30; flex-wrap: nowrap; justify-content: space-between; padding-block: 8px; }
+  .side .nav { display: none; }
+  .side .logo { padding: 0; }
+  .brand-pick summary { padding: 5px 10px 5px 5px; }
+  .brand-pick summary small { display: none; }
+  .brand-pick .menu { left: auto; right: 0; }
+  .brand-pick .menu-extra { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; }
+  .brand-pick .menu-extra a { color: var(--muted); }
+  .main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    background: var(--surface); border-top: 1px solid var(--line); padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left)); }
+  .tabs a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-height: 52px; border-radius: 12px; color: var(--muted); text-decoration: none; font-size: 11.5px; font-weight: 600; }
+  .tabs a[aria-current="page"] { color: var(--accent); }
+  .tabs a[aria-current="page"] .tab-icon { background: var(--accent-soft); }
+  .tab-icon { position: relative; display: grid; place-items: center; width: 52px; height: 30px; border-radius: 999px; }
+  .tab-icon svg { width: 20px; height: 20px; }
+  .tab-count { position: absolute; top: -4px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--wait); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; }
+}
+@media (max-width: 700px) {
+  /* Calendar: agenda list instead of the month grid. */
+  .cal-wrap, .view-seg { display: none !important; }
+  .agenda { display: flex; flex-direction: column; gap: 10px; list-style: none; margin: 0; padding: 0; }
+  .agenda-day { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+  .agenda-day.today { border-color: var(--accent); }
+  .agenda-date { display: flex; flex-direction: column; align-items: center; padding-top: 2px; }
+  .agenda-date strong { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .agenda-date span { font-family: var(--display); font-weight: 800; font-size: 15px; text-align: center; line-height: 1.15; }
+  .agenda-posts { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .agenda-post { display: flex; gap: 12px; align-items: center; text-decoration: none; color: inherit; min-height: 44px; }
+  .agenda-thumb { width: 64px; flex: none; }
+  .agenda-thumb .thumb { border-radius: 8px; }
+  .agenda-text { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+  .agenda-text strong { font-size: 14.5px; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .agenda-slot { min-height: 52px; border: 1.5px dashed var(--line-strong); border-radius: 12px; background: transparent; color: var(--muted); font-weight: 600; cursor: pointer; }
+  .agenda-add { align-self: flex-start; min-height: 40px; padding: 0 4px; border: 0; background: transparent; color: var(--accent); font-weight: 600; cursor: pointer; }
+  .agenda-empty { color: var(--muted); padding: 16px; text-align: center; }
+  /* Bigger tap targets */
+  .days button { min-width: 44px; min-height: 44px; }
+}
+.mobile-actions { display: none; }
+@media (max-width: 900px) {
+  /* Review: Approve and Next pinned above the tab bar. */
+  .mobile-actions { display: flex; gap: 8px; position: fixed; left: 0; right: 0; z-index: 35;
+    bottom: calc(64px + env(safe-area-inset-bottom)); padding: 10px max(12px, env(safe-area-inset-right)) 10px max(12px, env(safe-area-inset-left));
+    background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-top: 1px solid var(--line); }
+  .mobile-actions .btn-ok { flex: 1; }
+  .decide { display: none !important; }
+  .review { padding-bottom: 72px; }
+  .stage { touch-action: pan-y; }
+  .strip a { min-width: 64px; }
+}
+@media (max-width: 900px) {
+  .side .logo { min-height: 44px; }
+  .target { min-height: 40px; padding: 0 14px; }
+  .swatch .btn { min-height: 40px !important; }
+}

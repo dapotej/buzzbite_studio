@@ -121,6 +121,9 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
   const openDays: string[] = [];
   for (let d = fillFrom; d <= monthEnd; d = addDays(d, 1)) if (days.includes(dow(d)) && !byDay.has(d)) openDays.push(d);
   const monthName = fmt(monthStart, { month: "long" });
+  // Phone agenda: this month's days that have posts or are posting days still to come.
+  const agendaDays: string[] = [];
+  for (let d = monthStart; d <= monthEnd; d = addDays(d, 1)) if (byDay.has(d) || (days.includes(dow(d)) && d >= today)) agendaDays.push(d);
 
   // While photos and clips are being made, check on them every 6 seconds.
   useEffect(() => {
@@ -188,7 +191,7 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
           </p>
         </div>
         <div className="row">
-          <div className="seg" role="group" aria-label="View">
+          <div className="seg view-seg" role="group" aria-label="View">
             <Link href={`/b/${brand.id}?m=${monthStart.slice(0, 7)}&view=month`} aria-current={view === "month" ? "page" : undefined}>Month</Link>
             <Link href={`/b/${brand.id}?m=${monthStart.slice(0, 7)}&view=week`} aria-current={view === "week" ? "page" : undefined}>Week</Link>
           </div>
@@ -223,6 +226,32 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
         {busy === "fill" && <div className="progress" aria-hidden="true"><div style={{ width: `${progress * 100}%` }} /></div>}
         {error && <p className="error" role="alert" style={{ flexBasis: "100%" }}>{error}</p>}
       </section>
+
+      {/* Phones: a list of the month's posting days instead of the grid. */}
+      <ol className="agenda" aria-label={`${monthName} posts`}>
+        {agendaDays.length === 0 && <li className="agenda-empty">No posting days left this month. Choose days above, or go to next month.</li>}
+        {agendaDays.map((date) => {
+          const dayPosts = byDay.get(date) ?? [];
+          return (
+            <li key={date} className={`agenda-day ${date === today ? "today" : ""}`}>
+              <div className="agenda-date"><strong>{fmt(date, { weekday: "short" })}</strong><span>{fmt(date, { day: "numeric", month: "short" })}</span></div>
+              <div className="agenda-posts">
+                {dayPosts.map((p) => (
+                  <Link key={p.id} href={`/b/${brand.id}/review?post=${p.id}`} className="agenda-post">
+                    <span className="agenda-thumb"><ScaledPost brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} animate={false} badge={false} /></span>
+                    <span className="agenda-text"><strong>{p.title || p.spec.headline.replace(/\*/g, "")}</strong><span className={`chip ${chipFor(p)[0]}`}>{chipFor(p)[1]}</span></span>
+                  </Link>
+                ))}
+                {date >= today && (
+                  <button type="button" className={dayPosts.length ? "agenda-add" : "agenda-slot"} onClick={() => setPick(date)} disabled={busy !== null}>
+                    {busy === `day-${date}` ? "Creating…" : busy === "fill" && !dayPosts.length ? "Writing…" : dayPosts.length ? "+ Add another post" : "+ Create post"}
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
 
       <div className="cal-wrap">
         <div className={`cal ${view === "week" ? "week" : ""}`}>
