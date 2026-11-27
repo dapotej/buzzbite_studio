@@ -41,12 +41,20 @@ export async function ensureProfile(brand: { id: string; name: string; tz: strin
   const found = await call<{ profiles?: ZProfile[] }>("GET", "/v1/profiles", { query: { externalId: brand.id } });
   const hit = found.profiles?.find((p) => p.externalId === brand.id);
   if (hit) return hit._id;
-  const made = await call<{ profile?: ZProfile }>("POST", "/v1/profiles", {
-    body: { name: `${brand.name} (${brand.id.slice(0, 8)})`, externalId: brand.id, timezone: brand.tz },
-    idempotencyKey: `profile-${brand.id}`,
-  });
-  if (!made.profile?._id) throw new PostingError("The posting service did not create a profile.");
-  return made.profile._id;
+  try {
+    const made = await call<{ profile?: ZProfile }>("POST", "/v1/profiles", {
+      body: { name: `${brand.name} (${brand.id.slice(0, 8)})`, externalId: brand.id, timezone: brand.tz },
+      idempotencyKey: `profile-${brand.id}`,
+    });
+    if (made.profile?._id) return made.profile._id;
+  } catch (e) {
+    if (!(e instanceof PostingError)) throw e;
+  }
+  // The plan may not allow another profile: use the account's default one instead.
+  const all = await call<{ profiles?: ZProfile[] }>("GET", "/v1/profiles");
+  const fallback = all.profiles?.find((p) => !p.externalId) ?? all.profiles?.[0];
+  if (!fallback) throw new PostingError("Could not create a Zernio profile for this brand. Check your Zernio plan.");
+  return fallback._id;
 }
 
 /** URL of the platform's own login page; the person comes back to `redirectUrl`. */
