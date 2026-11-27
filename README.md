@@ -50,7 +50,7 @@ npm run db:migrate           # creates the tables (safe to re-run)
 npm run dev
 ```
 
-Environment variables: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PASSWORD`, `AUTH_SECRET`, `BLOB_READ_WRITE_TOKEN`, `FAL_KEY`, and `ZERNIO_API_KEY` for auto-posting (see `.env.example`).
+Environment variables: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PASSWORD`, `AUTH_SECRET`, `BLOB_READ_WRITE_TOKEN`, `FAL_KEY`, and `ZERNIO_API_KEY` for auto-posting, and optionally `FAL_REFERENCE_MODEL` (default `openai/gpt-image-2/edit`, used for photos that show the brand's product) (see `.env.example`).
 
 ## Roadmap to a product
 

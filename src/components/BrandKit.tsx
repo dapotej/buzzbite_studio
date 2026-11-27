@@ -1,9 +1,10 @@
 "use client";
+import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoToDataUrl, whiteVersion } from "./logo";
 import { ScaledPost } from "./PostThumb";
-import { PLATFORM_NAMES, PLATFORMS, type Brand, type BrandProfile, type Platform, type PostSpec, type SocialAccount } from "@/lib/types";
+import { PLATFORM_NAMES, PLATFORMS, type Brand, type BrandProfile, type Platform, type PostSpec, type ProductReference, type SocialAccount } from "@/lib/types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -12,7 +13,7 @@ const textToPairs = (s: string) => lines(s).map((l) => { const i = l.indexOf(":"
 
 const SAMPLE: PostSpec = {
   template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", sub: "", note: "", big: "", bigLabel: "",
-  items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", slides: [], media: null, clip: null,
+  items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", showsProduct: false, slides: [], media: null, clip: null,
 };
 
 /** Logo upload with an automatic white version for dark backgrounds. */
@@ -82,6 +83,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
   const [fonts, setFonts] = useState(p.fonts);
   const [time, setTime] = useState(brand.settings.time);
   const [tz, setTz] = useState(brand.settings.tz);
+  const [refs, setRefs] = useState<ProductReference[]>(brand.settings.references);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
@@ -100,7 +102,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
     };
     setState("saving"); setError("");
     const res = await fetch(`/api/brands/${brand.id}`, { method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ profile, settings: { ...brand.settings, time, tz }, logo_on_light: logos.light, logo_on_dark: logos.dark }) });
+      body: JSON.stringify({ profile, settings: { ...brand.settings, time, tz, references: refs }, logo_on_light: logos.light, logo_on_dark: logos.dark }) });
     if (!res.ok) { setState("idle"); return setError((await res.json().catch(() => ({}))).error ?? "Could not save."); }
     setState("saved"); router.refresh(); setTimeout(() => setState("idle"), 2000);
   }
@@ -163,6 +165,8 @@ export function BrandKit({ brand }: { brand: Brand }) {
         {area("hashtags", "Hashtags", p.hashtags.join("\n"), "One per line.", 3)}
         {area("imageStyle", "Photo style", p.imageStyle, "How AI photos should look: places, people, light, mood.", 3)}
       </section>
+
+      <ProductPhotos brandId={brand.id} refs={refs} onChange={setRefs} />
 
       <section className="card stack">
         <h2>Posting</h2>
@@ -304,6 +308,53 @@ function UpdatePosts({ brand }: { brand: Brand }) {
           {state.failed.length > 0 && ` Could not rewrite: ${state.failed.join(", ")}. Try again.`}
         </p>
       )}
+    </section>
+  );
+}
+
+/** Real photos of the brand's product. Photos that show the product are drawn from these. */
+function ProductPhotos({ brandId, refs, onChange }: { brandId: string; refs: ProductReference[]; onChange: (r: ProductReference[]) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  async function add(files: FileList | null) {
+    if (!files?.length) return;
+    setBusy(true); setError("");
+    try {
+      const added: ProductReference[] = [];
+      for (const file of Array.from(files).slice(0, 4 - refs.length)) {
+        if (!/^image\/(png|jpeg|webp)$/.test(file.type)) { setError(`${file.name} is not a PNG, JPEG or WebP photo.`); continue; }
+        const blob = await upload(`brands/${brandId}/reference/${file.name.replace(/[^\w.-]+/g, "-")}`, file, { access: "public", handleUploadUrl: "/api/media/upload" });
+        added.push({ url: blob.url, note: "" });
+      }
+      onChange([...refs, ...added]);
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not upload the photo."); }
+    finally { setBusy(false); }
+  }
+  return (
+    <section className="card stack" id="product-photos">
+      <h2>Product photos</h2>
+      <p className="small muted">Upload up to 4 real photos of your product. Whenever a post shows the product, Buzzbite draws it from these so it looks right. Say what matters in each photo. Save changes when you&rsquo;re done.</p>
+      {refs.length > 0 && (
+        <div className="refs">
+          {refs.map((r, i) => (
+            <div className="ref" key={r.url}>
+              <img src={r.url} alt={`Product photo ${i + 1}`} />
+              <label className="field">What to copy from this photo
+                <textarea rows={3} value={r.note} maxLength={600} placeholder="e.g. One slim double-sided screen per car, mounted lengthwise on the roof so it faces the pavements on both sides."
+                  onChange={(e) => onChange(refs.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)))} />
+              </label>
+              <button className="btn btn-ghost" type="button" onClick={() => onChange(refs.filter((_, j) => j !== i))}>Remove</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {refs.length < 4 && (
+        <label className="btn" style={{ alignSelf: "flex-start" }}>
+          {busy ? "Uploading…" : "Add product photos"}
+          <input type="file" hidden multiple accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
+        </label>
+      )}
+      {error && <p className="error" role="alert">{error}</p>}
     </section>
   );
 }

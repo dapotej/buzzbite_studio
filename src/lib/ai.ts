@@ -68,6 +68,7 @@ ${TEMPLATE_IDS.map((t) => `- ${t}: ${TEMPLATES[t].guide}`).join("\n")}
 Design rules:
 - On-image text is tiny: headlines six words or fewer; the detail goes in the captions.
 - Photo templates and video need imagePrompt: a concrete, believable scene in the brand's art direction, composed for a 4:5 portrait frame with calm space for the headline. Never ask for text, logos or signage in the image. Never depict real, identifiable people.
+- showsProduct: true when the photo includes the brand's own physical product (its screens, vehicles, packaging); the brand's reference photos are then used to draw it. False for scenes without it.
 - When the art direction describes how the brand's product looks or is mounted (its shape, orientation, placement, camera angle), repeat that description word for word in the imagePrompt whenever the product appears. Image models get these details wrong unless they are spelled out.
 - video also needs motionPrompt (subtle, realistic camera or subject movement) and 2-3 lines.
 - Fill only the fields the chosen template uses; set unused strings to "" and unused arrays to [].

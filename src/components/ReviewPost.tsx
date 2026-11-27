@@ -2,10 +2,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { EditText } from "./EditText";
 import { ScaledPost } from "./PostThumb";
 import { downloadBlob, exportMp4, exportPng, slidesPdf, slidesZip } from "@/lib/export";
 import { filesReady, makePostFiles } from "@/lib/deliver";
-import { PLATFORM_NAMES, PLATFORMS, isVideoPost, type Brand, type Platform, type Post } from "@/lib/types";
+import { PLATFORM_NAMES, PLATFORMS, isVideoPost, type Brand, type Platform, type Post, type PostSpec } from "@/lib/types";
 
 const fmt = (s: string | null) => (s ? new Date(s + "T12:00:00Z").toLocaleDateString("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }) : "No date");
 
@@ -15,6 +16,9 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
   const [caption, setCaption] = useState(post?.linkedin ?? "");
   const [busy, setBusy] = useState<string | null>(null);
   const [ask, setAsk] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [preview, setPreview] = useState<PostSpec | null>(null);
+  useEffect(() => { setPreview(null); setEditing(false); }, [post?.id]);
   const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState<number | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -224,7 +228,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
       <div className="review">
         <div className="stage">
           <div className="stage-col">
-            <ScaledPost key={p.id + p.updated_at} brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} canvasRef={canvasRef} slide={slide} badge={false} />
+            <ScaledPost key={p.id + p.updated_at} brand={brand.profile} spec={preview ?? p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} canvasRef={canvasRef} slide={slide} badge={false} />
             {p.spec.template === "carousel" && p.spec.slides.length > 1 && (
               <div className="slides-nav">
                 <button className="btn btn-ghost" type="button" onClick={() => setSlide((s) => Math.max(0, s - 1))} disabled={slide === 0} aria-label="Previous slide">←</button>
@@ -267,10 +271,22 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
           </div>
           <PublishPanel brand={brand} post={p} connected={connected} busy={busy} prep={prep} onToggle={toggleTarget} onPublish={publish} onUnapprove={unapprove} />
           <div className="quick">
+            <button type="button" aria-pressed={editing} disabled={busy !== null || making} onClick={() => { setEditing(!editing); setPreview(null); }}>{editing ? "Close text editor" : "Edit text"}</button>
             {[["new_photo", "New photo"], ["make_video", "Make it a video"], ["make_carousel", "Make it a carousel"], ["shorter", "Shorter caption"], ["different_design", "Different design"]].filter(([a]) => !(a === "make_carousel" && p.spec.template === "carousel") && !(a === "make_video" && isVideoPost(p.spec))).map(([a, label]) => (
               <button key={a} type="button" disabled={busy !== null || making} onClick={() => revise({ action: a }, a)}>{busy === a ? "Working…" : label}</button>
             ))}
           </div>
+          {editing && (
+            <EditText spec={p.spec} slide={slide} busy={busy !== null} onPreview={setPreview}
+              onSave={async (spec) => {
+                try {
+                  const saved = await patch({ spec });
+                  setPreview(null); setEditing(false);
+                  setMessage(p.status === "approved" && saved.status === "review" ? "Text saved. The post is back in review: approve it again to schedule it." : "Text saved.");
+                  router.refresh();
+                } catch (e) { setMessage(e instanceof Error ? e.message : "Could not save the text."); }
+              }} />
+          )}
           <form className="ask" onSubmit={(e) => { e.preventDefault(); if (ask.trim().length > 2) revise({ instruction: ask.trim() }, "ask"); }}>
             <input type="text" aria-label="Ask Buzzbite to change this post" placeholder="Or say what to change…" value={ask} onChange={(e) => setAsk(e.target.value)} disabled={busy !== null} />
             <button className="btn btn-ink" type="submit" disabled={busy !== null || ask.trim().length < 3}>{busy === "ask" ? "Changing…" : "Change"}</button>

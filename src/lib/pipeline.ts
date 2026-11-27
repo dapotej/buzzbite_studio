@@ -3,7 +3,7 @@ import { planPosts, type PostDraft } from "./ai";
 import {
   createPost, finishMedia, getPost, insertMedia, latestTrendReport, listPendingMedia, listPostsBetween, recentPostTitles, updatePost,
 } from "./db";
-import { checkJob, describeFalError, queueImage, queueVideo } from "./media";
+import { checkJob, describeFalError, queueImage, queueReferenceImage, queueVideo } from "./media";
 import { TEMPLATES, type Brand, type Post, type PostSpec } from "./types";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -57,8 +57,18 @@ export async function startMedia(brand: Brand, post: Post): Promise<Post> {
     return (await updatePost(post.id, { status: "review", issue: null }))!;
   }
   try {
-    const prompt = `${post.spec.imagePrompt.trim()} Art direction: ${brand.profile.imageStyle || "natural, modern, premium photography"}. No text, letters, logos or signage.`;
-    const job = await queueImage(prompt);
+    const style = brand.profile.imageStyle || "natural, modern, premium photography";
+    const refs = brand.settings.references;
+    const job = post.spec.showsProduct && refs.length
+      ? await queueReferenceImage(
+          `Create a new photograph: ${post.spec.imagePrompt.trim()}\n\n` +
+          `The attached photo${refs.length > 1 ? "s show" : " shows"} the brand's real product. Draw the product exactly as it appears there: same shape, size, number, position and orientation. ` +
+          `Copy only the product; the scene, place, people and light come from the description above.\n` +
+          refs.map((r, i) => (r.note.trim() ? `Reference ${i + 1}: ${r.note.trim()}\n` : "")).join("") +
+          `Art direction: ${style}\nNo readable text, letters, logos or brand names anywhere in the image. Portrait 4:5 frame with calm space for a headline.`,
+          refs.map((r) => r.url),
+        )
+      : await queueImage(`${post.spec.imagePrompt.trim()} Art direction: ${style}. No text, letters, logos or signage.`);
     await insertMedia({
       brand_id: brand.id, post_id: post.id, role: "image", kind: "image", status: "pending", source: "ai", url: null,
       description: post.spec.imagePrompt.slice(0, 300), fal_endpoint: job.endpoint, fal_request_id: job.requestId,

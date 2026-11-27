@@ -6,6 +6,8 @@ import sharp from "sharp";
 // Model endpoints are settings, so a newer model can be swapped in without a code change.
 // Defaults: FLUX 3 for 4:5 photos; Kling 2.1 (standard) to animate a still into a 5-second clip.
 export const IMAGE_MODEL = process.env.FAL_IMAGE_MODEL || "blackforestlabs/flux-3/text-to-image";
+// Photos that show the brand's own product are drawn from its reference photos with an image-editing model.
+export const REFERENCE_MODEL = process.env.FAL_REFERENCE_MODEL || "openai/gpt-image-2/edit";
 export const VIDEO_MODEL = process.env.FAL_VIDEO_MODEL || "fal-ai/kling-video/v2.1/standard/image-to-video";
 
 export class MediaError extends Error {}
@@ -33,6 +35,15 @@ export async function queueImage(prompt: string): Promise<{ endpoint: string; re
   configure();
   const res = await fal.queue.submit(IMAGE_MODEL, { input: { prompt, aspect_ratio: "4:5", num_images: 1 } });
   return { endpoint: IMAGE_MODEL, requestId: res.request_id };
+}
+
+/** Queues a 4:5 photo drawn from reference photos of the brand's product. */
+export async function queueReferenceImage(prompt: string, referenceUrls: string[]): Promise<{ endpoint: string; requestId: string }> {
+  configure();
+  const res = await fal.queue.submit(REFERENCE_MODEL, {
+    input: { prompt, image_urls: referenceUrls.slice(0, 4), image_size: { width: 1024, height: 1280 }, quality: "high", num_images: 1, output_format: "jpeg" },
+  });
+  return { endpoint: REFERENCE_MODEL, requestId: res.request_id };
 }
 
 /** Queues a 5-second clip animated from an existing image. */

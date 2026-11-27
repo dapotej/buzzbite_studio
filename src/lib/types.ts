@@ -27,7 +27,9 @@ export const BrandProfileSchema = z.object({
 export type BrandProfile = z.infer<typeof BrandProfileSchema>;
 
 /** The posting plan: which weekdays to post on (0 = Monday) and at what time. */
-export type BrandSettings = { days: number[]; time: string; /** IANA time zone posts go out in. */ tz: string };
+/** A photo of the brand's real product, copied by the image model whenever a post shows the product. */
+export type ProductReference = { url: string; note: string };
+export type BrandSettings = { days: number[]; time: string; /** IANA time zone posts go out in. */ tz: string; references: ProductReference[] };
 
 export const PLATFORMS = ["instagram", "linkedin"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -115,6 +117,7 @@ export const PostSpecSchema = z.object({
     .string()
     .describe("Photo templates and video: a concrete photo to generate in the brand's art direction (subject, place, light, composition). No text in the image. Empty for other templates."),
   motionPrompt: z.string().describe("video only: how the photo should move in the clip (camera, subject motion), or empty."),
+  showsProduct: z.boolean().describe("True when the photo shows the brand's own physical product (for example its screens or vehicles), so the brand's product reference photos are used to draw it correctly."),
   slides: z
     .array(
       z.object({
