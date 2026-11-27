@@ -63,6 +63,15 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
     setMessage(data.status === "making" ? "Updated. The new photo or video is being made; it appears here in a minute or two." : "Updated.");
     router.refresh();
   }
+  async function retryMedia() {
+    setBusy("retry"); setMessage("");
+    const res = await fetch(`/api/posts/${p.id}/retry-media`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    setBusy(null);
+    if (!res.ok) return setMessage(data.error ?? "Could not try again.");
+    if (!data.issue) setMessage("Trying again. The photo or video appears here in a minute or two.");
+    router.refresh();
+  }
   async function saveCaption() {
     if (caption === p[platform]) return;
     try { await patch({ [platform]: caption }); setMessage("Caption saved."); router.refresh(); } catch { setMessage("Could not save the caption."); }
@@ -125,6 +134,12 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
             </span>
           </div>
           <h2 style={{ fontSize: 23 }}>{p.title || p.spec.headline.replace(/\*/g, "")}</h2>
+          {p.issue && (
+            <div className="issue" role="alert">
+              <span>{p.issue}</span>
+              <button className="btn" type="button" onClick={retryMedia} disabled={busy !== null}>{busy === "retry" ? "Trying again…" : "Try again"}</button>
+            </div>
+          )}
           <div className="row" style={{ gap: 8 }}>
             <span className="ch ch-in">in</span><span className="ch ch-ig">IG</span>
             <span className="seg" role="group" aria-label="Caption">

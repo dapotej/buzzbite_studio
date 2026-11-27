@@ -3,7 +3,7 @@ import { z } from "zod";
 import { revisePost } from "@/lib/ai";
 import { getBrand, getPost, insertMedia, updatePost } from "@/lib/db";
 import { handle, notFound } from "@/lib/http";
-import { queueVideo } from "@/lib/media";
+import { describeFalError, queueVideo } from "@/lib/media";
 import { startMedia } from "@/lib/pipeline";
 import { TEMPLATES } from "@/lib/types";
 
@@ -28,9 +28,13 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   if (action === "make_video") {
     const lines = post.spec.lines.length ? post.spec.lines : [post.spec.headline];
     if (post.spec.media?.url) {
-      const job = await queueVideo(post.spec.motionPrompt || "Slow, subtle camera push-in with natural movement in the scene.", post.spec.media.url);
-      await insertMedia({ brand_id: brand.id, post_id: post.id, role: "video", kind: "video", status: "pending", source: "ai", url: null, description: "Animated photo", fal_endpoint: job.endpoint, fal_request_id: job.requestId });
-      return NextResponse.json(await updatePost(id, { status: "making", spec: { ...post.spec, template: "video", lines, clip: null } }));
+      try {
+        const job = await queueVideo(post.spec.motionPrompt || "Slow, subtle camera push-in with natural movement in the scene.", post.spec.media.url);
+        await insertMedia({ brand_id: brand.id, post_id: post.id, role: "video", kind: "video", status: "pending", source: "ai", url: null, description: "Animated photo", fal_endpoint: job.endpoint, fal_request_id: job.requestId });
+        return NextResponse.json(await updatePost(id, { status: "making", issue: null, spec: { ...post.spec, template: "video", lines, clip: null } }));
+      } catch (e) {
+        return NextResponse.json(await updatePost(id, { issue: `The video could not be started. ${describeFalError(e)}` }));
+      }
     }
     const next = await updatePost(id, { spec: { ...post.spec, template: "video", lines, imagePrompt: post.spec.imagePrompt || `A scene that fits: ${post.title}` } });
     return NextResponse.json(await startMedia(brand, next!));

@@ -175,7 +175,7 @@ function Media({ spec, animate, className = "", kenBurns = false }: { spec: Post
     return <video className={cls} src={spec.clip.url} poster={spec.media?.url} crossOrigin="anonymous" muted loop playsInline autoPlay preload="auto" />;
   }
   if (spec.media?.url) return <img className={`${cls}${kenBurns && !spec.clip ? " bl-kb" : ""}`} src={spec.media.url} crossOrigin="anonymous" alt="" />;
-  return <div className={`${cls} bl-ph-wait`}><span>Creating the photo…</span></div>;
+  return <div className={`${cls} bl-ph-wait`}><span>Photo not ready yet</span></div>;
 }
 
 function Kicker({ text }: { text: string }) {

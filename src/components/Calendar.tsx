@@ -24,6 +24,23 @@ export function Calendar({ brand, posts, today, view, monthStart, monthEnd, grid
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const polling = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pick, setPick] = useState<string | null>(null);
+  const [brief, setBrief] = useState("");
+  const [format, setFormat] = useState<"any" | "photo" | "video" | "graphic">("any");
+
+  async function createFor(date: string) {
+    setBusy(`day-${date}`); setError("");
+    try {
+      const res = await fetch(`/api/brands/${brand.id}/posts`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ date, brief, format }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Could not create the post.");
+      setPick(null); setBrief(""); setFormat("any");
+      setToast("Post created. Its photo or video is being made now.");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally { setBusy(null); }
+  }
 
   const byDay = useMemo(() => {
     const m = new Map<string, Post[]>();
@@ -142,16 +159,26 @@ export function Calendar({ brand, posts, today, view, monthStart, monthEnd, grid
                 const dayPosts = byDay.get(date) ?? [];
                 const inMonth = date >= monthStart && date <= monthEnd;
                 const planned = days.includes(dow(date)) && inMonth && date > today;
+                const canAdd = date >= today;
                 return (
                   <div key={date} className={`cell ${inMonth ? "" : "out"} ${date === today ? "today" : ""}`}>
                     <span className="dnum">{fmt(date, { day: "numeric" })}{date.endsWith("-01") ? " " + fmt(date, { month: "short" }) : ""}</span>
                     {dayPosts.map((p) => (
                       <Link key={p.id} href={`/b/${brand.id}/review?post=${p.id}`} className="cpost" aria-label={p.title || "Post"}>
                         <ScaledPost brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} animate={false} />
-                        <span className={`st chip ${STATUS[p.status][0]}`}>{STATUS[p.status][1]}</span>
+                        <span className={`st chip ${p.issue ? "chip-issue" : STATUS[p.status][0]}`}>{p.issue ? "Needs attention" : STATUS[p.status][1]}</span>
                       </Link>
                     ))}
-                    {!dayPosts.length && planned && <div className="slot-add">{busy === "fill" ? "Writing…" : "Post day"}</div>}
+                    {!dayPosts.length && planned && (
+                      <button type="button" className="slot-add" onClick={() => setPick(date)} disabled={busy !== null}>
+                        {busy === "fill" ? "Writing…" : busy === `day-${date}` ? "Creating…" : "+ Create post"}
+                      </button>
+                    )}
+                    {canAdd && (dayPosts.length > 0 || !planned) && (
+                      <button type="button" className="day-add" onClick={() => setPick(date)} disabled={busy !== null} aria-label={`Create a post for ${fmt(date, { weekday: "long", day: "numeric", month: "long" })}`}>
+                        {busy === `day-${date}` ? "Creating…" : "+ Add post"}
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -159,6 +186,29 @@ export function Calendar({ brand, posts, today, view, monthStart, monthEnd, grid
           ))}
         </div>
       </div>
+      {pick && (
+        <div className="dialog-back" onClick={(e) => { if (e.target === e.currentTarget && !busy) setPick(null); }}>
+          <form className="dialog card stack" role="dialog" aria-modal="true" aria-labelledby="day-title" onSubmit={(e) => { e.preventDefault(); createFor(pick); }}>
+            <h2 id="day-title">Create a post for {fmt(pick, { weekday: "long", day: "numeric", month: "long" })}</h2>
+            <label className="field">What should it be about? <span className="hint">Optional. Leave empty and SocialPilot picks the best topic for the day.</span>
+              <textarea rows={3} value={brief} onChange={(e) => setBrief(e.target.value)} maxLength={1000} placeholder="e.g. Our new airport screens in Abuja" autoFocus />
+            </label>
+            <div className="stack" style={{ gap: 6 }}>
+              <span className="small" style={{ fontWeight: 600 }}>Type of post</span>
+              <div className="seg" role="group" aria-label="Type of post">
+                {([["any", "Let SocialPilot choose"], ["photo", "Photo"], ["video", "Video"], ["graphic", "Graphic"]] as const).map(([k, l]) => (
+                  <button key={k} type="button" aria-pressed={format === k} onClick={() => setFormat(k)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {error && <p className="error" role="alert">{error}</p>}
+            <div className="row">
+              <button className="btn btn-ink" type="submit" disabled={busy !== null}>{busy ? "Creating the post… (about 30 seconds)" : "Create post"}</button>
+              <button className="btn btn-ghost" type="button" onClick={() => setPick(null)} disabled={busy !== null}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

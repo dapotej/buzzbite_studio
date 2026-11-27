@@ -9,6 +9,19 @@ export const VIDEO_MODEL = process.env.FAL_VIDEO_MODEL || "fal-ai/kling-video/v2
 
 export class MediaError extends Error {}
 
+/** Turns a fal.ai failure into a sentence the owner can act on. */
+export function describeFalError(e: unknown): string {
+  const err = e as { status?: number; body?: { detail?: unknown }; message?: string };
+  const detail = err?.body?.detail;
+  const text = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((d) => (d as { msg?: string }).msg ?? JSON.stringify(d)).join("; ") : "";
+  if (err?.status === 401) return "fal.ai rejected the API key. Check FAL_KEY in Vercel.";
+  if (err?.status === 403) return `fal.ai refused the request${text ? `: ${text}` : ""}. This usually means the fal.ai account has no credit left (top up at fal.ai/dashboard/billing) or the key is wrong.`;
+  if (err?.status === 404) return `fal.ai does not know the model ${IMAGE_MODEL}. Set FAL_IMAGE_MODEL in Vercel.`;
+  if (err?.status === 422) return `fal.ai could not use the request${text ? `: ${text}` : ""}.`;
+  if (e instanceof MediaError) return e.message;
+  return `fal.ai error${err?.status ? ` ${err.status}` : ""}${text ? `: ${text}` : err?.message ? `: ${err.message}` : ""}.`;
+}
+
 function configure() {
   if (!process.env.FAL_KEY) throw new MediaError("AI images need a fal.ai key. Add FAL_KEY in Vercel's environment variables.");
   fal.config({ credentials: process.env.FAL_KEY });

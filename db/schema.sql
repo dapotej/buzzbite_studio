@@ -81,3 +81,4 @@ create index if not exists media_post_idx on media(post_id);
 alter table posts add column if not exists title text not null default '';
 alter table posts add column if not exists pillar text not null default '';
 -- post status: making (photos/video still generating) | review | approved | posted
+alter table posts add column if not exists issue text;  -- why a photo or video could not be made

@@ -3,7 +3,7 @@ import { planPosts, type PostDraft } from "./ai";
 import {
   createPost, finishMedia, getPost, insertMedia, latestTrendReport, listPendingMedia, listPostsBetween, recentPostTitles, updatePost,
 } from "./db";
-import { checkJob, queueImage, queueVideo } from "./media";
+import { checkJob, describeFalError, queueImage, queueVideo } from "./media";
 import { TEMPLATES, type Brand, type Post, type PostSpec } from "./types";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -54,7 +54,7 @@ export async function savePost(brand: Brand, draft: PostDraft, date: string | nu
 export async function startMedia(brand: Brand, post: Post): Promise<Post> {
   const t = TEMPLATES[post.spec.template];
   if (!t?.usesPhoto || post.spec.media || !post.spec.imagePrompt.trim()) {
-    return (await updatePost(post.id, { status: "review" }))!;
+    return (await updatePost(post.id, { status: "review", issue: null }))!;
   }
   try {
     const prompt = `${post.spec.imagePrompt.trim()} Art direction: ${brand.profile.imageStyle || "natural, modern, premium photography"}. No text, letters, logos or signage.`;
@@ -63,10 +63,11 @@ export async function startMedia(brand: Brand, post: Post): Promise<Post> {
       brand_id: brand.id, post_id: post.id, role: "image", kind: "image", status: "pending", source: "ai", url: null,
       description: post.spec.imagePrompt.slice(0, 300), fal_endpoint: job.endpoint, fal_request_id: job.requestId,
     });
-    return (await updatePost(post.id, { status: "making" }))!;
+    return (await updatePost(post.id, { status: "making", issue: null }))!;
   } catch (e) {
-    console.error("image queue failed", e);
-    return (await updatePost(post.id, { status: "review", spec: { ...post.spec, template: "statement" } }))!;
+    const issue = describeFalError(e);
+    console.error("image queue failed:", issue, JSON.stringify((e as { body?: unknown }).body ?? null));
+    return (await updatePost(post.id, { status: "review", issue }))!;
   }
 }
 
@@ -86,7 +87,7 @@ export async function advance(brand: Brand): Promise<{ pending: number }> {
 
     if (m.role === "image") {
       if (out.state === "failed") {
-        await updatePost(post.id, { status: "review", spec: { ...post.spec, template: "statement" } });
+        await updatePost(post.id, { status: "review", issue: `The photo could not be made: ${out.error}` });
         continue;
       }
       const spec: PostSpec = { ...post.spec, media: { id: m.id, url: out.url, kind: "image" } };
@@ -101,13 +102,17 @@ export async function advance(brand: Brand): Promise<{ pending: number }> {
           still++;
           continue;
         } catch (e) {
-          console.error("video queue failed", e);
+          const issue = `The photo is ready but the video could not be started. ${describeFalError(e)}`;
+          console.error("video queue failed:", issue);
+          await updatePost(post.id, { spec, status: "review", issue });
+          continue;
         }
       }
-      await updatePost(post.id, { spec, status: post.status === "making" ? "review" : post.status });
+      await updatePost(post.id, { spec, status: post.status === "making" ? "review" : post.status, issue: null });
     } else if (m.role === "video") {
-      const spec: PostSpec = out.state === "failed" ? post.spec : { ...post.spec, clip: { id: m.id, url: out.url, kind: "video" } };
-      await updatePost(post.id, { spec, status: post.status === "making" ? "review" : post.status });
+      const failed = out.state === "failed";
+      const spec: PostSpec = failed ? post.spec : { ...post.spec, clip: { id: m.id, url: out.url, kind: "video" } };
+      await updatePost(post.id, { spec, status: post.status === "making" ? "review" : post.status, issue: failed ? `The video could not be made: ${out.error}` : null });
     }
   }
   return { pending: still };

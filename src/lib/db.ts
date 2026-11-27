@@ -58,6 +58,7 @@ function toPost(r: Row): Post {
     idea_id: (r.idea_id as string) ?? null,
     publish_on: day(r.publish_on),
     status,
+    issue: (r.issue as string) ?? null,
     title: (r.title as string) ?? "",
     pillar: (r.pillar as string) ?? "",
     spec: normalizeSpec(r.spec as Partial<PostSpec>),
@@ -152,13 +153,13 @@ export async function createPost(p: {
 }
 export async function updatePost(
   id: string,
-  patch: Partial<Pick<Post, "spec" | "linkedin" | "instagram" | "status" | "publish_on" | "title" | "pillar">>,
+  patch: Partial<Pick<Post, "spec" | "linkedin" | "instagram" | "status" | "publish_on" | "title" | "pillar" | "issue">>,
 ): Promise<Post | null> {
   const cur = await getPost(id);
   if (!cur) return null;
   const n = { ...cur, ...patch };
   const rows = await client()`update posts set spec = ${JSON.stringify(n.spec)}::jsonb, linkedin = ${n.linkedin}, instagram = ${n.instagram},
-    status = ${n.status}, publish_on = ${n.publish_on}, title = ${n.title}, pillar = ${n.pillar}, updated_at = now()
+    status = ${n.status}, publish_on = ${n.publish_on}, title = ${n.title}, pillar = ${n.pillar}, issue = ${n.issue}, updated_at = now()
     where id = ${id} returning *`;
   return toPost(rows[0]);
 }

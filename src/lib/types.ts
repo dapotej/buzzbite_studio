@@ -96,6 +96,8 @@ export type Post = {
   idea_id: string | null;
   publish_on: string | null;
   status: PostStatus;
+  /** Why the photo or video could not be made, shown on the post with a retry. */
+  issue: string | null;
   title: string;
   pillar: string;
   spec: PostSpec;
