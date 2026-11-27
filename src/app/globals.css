@@ -204,3 +204,12 @@ button.slot-add:hover:not(:disabled) { border-color: var(--accent); color: var(-
 .dialog { width: min(520px, 100%); box-shadow: 0 30px 80px rgba(0,0,0,.3); padding: 22px; gap: 16px; }
 .issue { background: #FDE7E5; color: #7A1A14; border-radius: 12px; padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 10px; }
 .issue .btn { align-self: flex-start; }
+
+.cell.drop { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.cpost[draggable="true"] { cursor: grab; }
+.cpost.is-dragging { opacity: .4; }
+.idea-pick { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+.idea-pick button { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; font: inherit; color: var(--ink); }
+.idea-pick button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.idea-pick button:disabled { opacity: .6; cursor: default; }
+.idea-pick .chip { text-transform: capitalize; }

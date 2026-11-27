@@ -1,6 +1,7 @@
 import "server-only";
 import { fal } from "@fal-ai/client";
 import { put } from "@vercel/blob";
+import sharp from "sharp";
 
 // Model endpoints are settings, so a newer model can be swapped in without a code change.
 // Defaults: FLUX 3 for 4:5 photos; Kling 2.1 (standard) to animate a still into a 5-second clip.
@@ -66,8 +67,17 @@ export async function checkJob(endpoint: string, requestId: string, kind: "image
   if (!src) return { state: "failed", error: "The model finished but returned no file." };
   const file = await fetch(src);
   if (!file.ok) return { state: "failed", error: "Could not download the generated file." };
-  const contentType = file.headers.get("content-type") || (kind === "image" ? "image/png" : "video/mp4");
-  const ext = contentType.includes("jpeg") ? "jpg" : contentType.includes("webp") ? "webp" : kind === "image" ? "png" : "mp4";
-  const blob = await put(`brands/${brandId}/ai-${requestId}.${ext}`, file.body!, { access: "public", contentType, addRandomSuffix: true });
+  if (kind === "image") {
+    // Store photos at post size as a compact JPEG: generated files are often several MB.
+    const jpeg = await sharp(Buffer.from(await file.arrayBuffer()))
+      .rotate()
+      .resize({ width: 1080, height: 1350, fit: "cover", position: "attention" })
+      .jpeg({ quality: 84, mozjpeg: true })
+      .toBuffer();
+    const blob = await put(`brands/${brandId}/ai-${requestId}.jpg`, jpeg, { access: "public", contentType: "image/jpeg", addRandomSuffix: true });
+    return { state: "done", url: blob.url, contentType: "image/jpeg" };
+  }
+  const contentType = file.headers.get("content-type") || "video/mp4";
+  const blob = await put(`brands/${brandId}/ai-${requestId}.mp4`, file.body!, { access: "public", contentType, addRandomSuffix: true });
   return { state: "done", url: blob.url, contentType };
 }

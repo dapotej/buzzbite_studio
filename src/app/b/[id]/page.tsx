@@ -1,6 +1,6 @@
 import { Calendar } from "@/components/Calendar";
 import { Shell } from "@/components/Shell";
-import { listPostsBetween } from "@/lib/db";
+import { latestTrendReport, listPostsBetween } from "@/lib/db";
 import { iso, loadBrandPage, todayIso } from "@/lib/page";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +18,12 @@ export default async function CalendarPage({ params, searchParams }: { params: P
   const last = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 0));
   const gridStart = new Date(first); gridStart.setUTCDate(first.getUTCDate() - ((first.getUTCDay() + 6) % 7));
   const gridEnd = new Date(last); gridEnd.setUTCDate(last.getUTCDate() + (6 - ((last.getUTCDay() + 6) % 7)));
-  const posts = await listPostsBetween(id, iso(gridStart), iso(gridEnd));
+  const [posts, report] = await Promise.all([listPostsBetween(id, iso(gridStart), iso(gridEnd)), latestTrendReport(id)]);
+  const ideas = report ? report.items.map((item, index) => ({ ...item, index, reportId: report.id })).filter((i) => !i.addedPostId) : [];
   return (
     <Shell brand={brand} brands={brands} current="calendar" reviewCount={reviewCount}>
       <Calendar
-        brand={brand} posts={posts} today={today} view={view === "week" ? "week" : "month"}
+        brand={brand} posts={posts} ideas={ideas} today={today} view={view === "week" ? "week" : "month"}
         monthStart={iso(first)} monthEnd={iso(last)} gridStart={iso(gridStart)} gridEnd={iso(gridEnd)}
       />
     </Shell>

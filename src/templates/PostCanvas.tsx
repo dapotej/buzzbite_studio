@@ -174,7 +174,13 @@ function Media({ spec, animate, className = "", kenBurns = false }: { spec: Post
   if (animate && spec.clip?.url) {
     return <video className={cls} src={spec.clip.url} poster={spec.media?.url} crossOrigin="anonymous" muted loop playsInline autoPlay preload="auto" />;
   }
-  if (spec.media?.url) return <img className={`${cls}${kenBurns && !spec.clip ? " bl-kb" : ""}`} src={spec.media.url} crossOrigin="anonymous" alt="" />;
+  if (spec.media?.url) {
+    // Thumbnails load a small, resized copy; the full photo is used for previews and downloads.
+    const src = !animate && spec.media.url.includes(".public.blob.vercel-storage.com")
+      ? `/_next/image?url=${encodeURIComponent(spec.media.url)}&w=384&q=70`
+      : spec.media.url;
+    return <img className={`${cls}${kenBurns && !spec.clip ? " bl-kb" : ""}`} src={src} crossOrigin="anonymous" alt="" loading={animate ? "eager" : "lazy"} decoding="async" />;
+  }
   return <div className={`${cls} bl-ph-wait`}><span>Photo not ready yet</span></div>;
 }
 
