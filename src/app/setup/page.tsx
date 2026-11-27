@@ -11,7 +11,7 @@ export default async function SetupPage() {
     <main className="main">
       <div className="wrap narrow" style={{ gap: 26 }}>
         <div className="row">
-          <Link href="/" className="logo" style={{ padding: 0 }}><LogoMark />SocialPilot</Link>
+          <Link href="/" className="logo" style={{ padding: 0 }}><LogoMark />Buzzbite</Link>
           <span className="spacer" />
           {brands.length > 0 && <Link className="btn btn-ghost" href={`/b/${brands[0].id}`}>Cancel</Link>}
         </div>

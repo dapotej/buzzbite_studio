@@ -3,7 +3,7 @@ import "./globals.css";
 import "@/templates/post.css";
 
 export const metadata: Metadata = {
-  title: "SocialPilot",
+  title: "Buzzbite",
   description: "Your social media on autopilot, in your brand.",
   icons: { icon: "/icon.svg" },
 };

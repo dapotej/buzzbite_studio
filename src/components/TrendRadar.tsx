@@ -32,7 +32,7 @@ export function TrendRadar({ brand, report }: { brand: Brand; report: TrendRepor
       <div className="head">
         <div>
           <h1 className="title">Trend radar</h1>
-          <p className="sub">Post ideas from what&rsquo;s happening for {brand.name}&rsquo;s audience right now: news, events, seasons and what people are discussing. Add one to the calendar and SocialPilot creates the post.</p>
+          <p className="sub">Post ideas from what&rsquo;s happening for {brand.name}&rsquo;s audience right now: news, events, seasons and what people are discussing. Add one to the calendar and Buzzbite creates the post.</p>
         </div>
         <button className="btn" type="button" onClick={research} disabled={busy !== null}>
           {busy === "research" ? "Searching the web… (2–3 minutes)" : report ? "Check again" : "Find ideas"}
@@ -40,7 +40,7 @@ export function TrendRadar({ brand, report }: { brand: Brand; report: TrendRepor
       </div>
       {error && <p className="error" role="alert">{error}</p>}
       {!report ? (
-        <div className="empty"><strong>No ideas yet</strong>Click Find ideas. SocialPilot searches the web for what matters to your audience this week.</div>
+        <div className="empty"><strong>No ideas yet</strong>Click Find ideas. Buzzbite searches the web for what matters to your audience this week.</div>
       ) : (
         <>
           <section className="summary"><p><b>Right now:</b> {report.summary}</p><span className="chip">Checked {when(report.created_at)}</span></section>

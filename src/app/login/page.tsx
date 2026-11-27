@@ -18,7 +18,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
     <main className="wrap" style={{ maxWidth: 420, paddingTop: "12vh", paddingInline: 16 }}>
       <div className="row" style={{ gap: 12 }}>
         <span style={{ width: 34, height: 34, display: "inline-flex" }}><LogoMark /></span>
-        <h1>SocialPilot</h1>
+        <h1>Buzzbite</h1>
       </div>
       <p className="lede">Your social media on autopilot, in your brand.</p>
       <form action={signIn} className="card stack">

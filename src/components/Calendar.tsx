@@ -159,7 +159,7 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
           </div>
           <p className="sub">
             {posts.length === 0
-              ? `Choose your posting days. SocialPilot creates ${monthName}'s posts for you: photos, videos and captions, in ${brand.name}'s look.`
+              ? `Choose your posting days. Buzzbite creates ${monthName}'s posts for you: photos, videos and captions, in ${brand.name}'s look.`
               : making ? "Photos and videos are being created. Posts move to review as they finish."
               : toReview ? `${toReview} post${toReview === 1 ? " is" : "s are"} waiting for your OK.` : "Everything this month is approved."}
           </p>
@@ -265,13 +265,13 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
             ) : (
               <p className="small muted">No trend ideas yet. <Link href={`/b/${brand.id}/trends`}>Find ideas in Trend radar</Link>, or describe the post below.</p>
             )}
-            <label className="field">{ideas.length ? "Or say what it should be about" : "What should it be about?"} <span className="hint">Optional. Leave empty and SocialPilot picks the best topic for the day.</span>
+            <label className="field">{ideas.length ? "Or say what it should be about" : "What should it be about?"} <span className="hint">Optional. Leave empty and Buzzbite picks the best topic for the day.</span>
               <textarea rows={3} value={brief} onChange={(e) => setBrief(e.target.value)} maxLength={1000} placeholder="e.g. Our new airport screens in Abuja" autoFocus />
             </label>
             <div className="stack" style={{ gap: 6 }}>
               <span className="small" style={{ fontWeight: 600 }}>Type of post</span>
               <div className="seg" role="group" aria-label="Type of post">
-                {([["any", "Let SocialPilot choose"], ["photo", "Photo"], ["video", "Video"], ["carousel", "Carousel"], ["graphic", "Graphic"]] as const).map(([k, l]) => (
+                {([["any", "Let Buzzbite choose"], ["photo", "Photo"], ["video", "Video"], ["carousel", "Carousel"], ["graphic", "Graphic"]] as const).map(([k, l]) => (
                   <button key={k} type="button" aria-pressed={format === k} onClick={() => setFormat(k)}>{l}</button>
                 ))}
               </div>

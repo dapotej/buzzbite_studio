@@ -48,7 +48,7 @@ export function LogoUpload({ colors, light, dark, onChange }: {
         {box("light", "Logo for light backgrounds", colors.light, light)}
         {box("dark", "Logo for dark backgrounds and photos", colors.dark, dark)}
       </div>
-      <p className="small muted">Upload one logo and SocialPilot makes the white version for dark posts automatically, if your logo has a transparent background.</p>
+      <p className="small muted">Upload one logo and Buzzbite makes the white version for dark posts automatically, if your logo has a transparent background.</p>
       {error && <p className="error" role="alert">{error}</p>}
     </div>
   );

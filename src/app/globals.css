@@ -1,8 +1,8 @@
-/* SocialPilot app chrome. Layout: light sidebar + calendar-first work area. Calm neutrals so the posts carry the colour. */
+/* Buzzbite app chrome. Layout: light sidebar + calendar-first work area. Calm neutrals so the posts carry the colour. */
 :root {
   --bg: #F5F6F8; --surface: #FFFFFF; --sunk: #EDEFF2; --line: #E1E4E9; --line-strong: #C5CAD3;
   --ink: #15171C; --muted: #646B78; --faint: #A3A9B4;
-  --accent: #2F5BEA; --accent-soft: #E8EEFF; --accent-ink: #1C3A9C;
+  --accent: #5B26CF; --accent-soft: #EEE8FB; --accent-ink: #3D168F;
   --ok: #157A44; --ok-soft: #E1F4E9; --wait: #9A5B00; --wait-soft: #FFF2DC; --making: #5B4BC4; --making-soft: #EEEBFF; --danger: #B3261E;
   --display: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
   --text: "Inter", system-ui, sans-serif;
@@ -12,7 +12,7 @@
   :root {
     --bg: #101216; --surface: #171A20; --sunk: #1F232B; --line: #2A2F38; --line-strong: #3A404B;
     --ink: #ECEEF2; --muted: #A0A6B2; --faint: #6B7280;
-    --accent: #7D9BFF; --accent-soft: #1E2745; --accent-ink: #C5D2FF;
+    --accent: #A88BF0; --accent-soft: #2A2145; --accent-ink: #DED4F5;
     --ok: #5FD08F; --ok-soft: #14301F; --wait: #F5B85A; --wait-soft: #33260F; --making: #B3A8FF; --making-soft: #261F4A; --danger: #FF8A80;
     color-scheme: dark;
   }

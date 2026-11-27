@@ -32,7 +32,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
     return (
       <div className="wrap narrow">
         <h1 className="title">Nothing to review</h1>
-        <p className="sub">New posts appear here when SocialPilot creates them. Go to the <Link href={`/b/${brand.id}`}>calendar</Link> to create this month&rsquo;s posts.</p>
+        <p className="sub">New posts appear here when Buzzbite creates them. Go to the <Link href={`/b/${brand.id}`}>calendar</Link> to create this month&rsquo;s posts.</p>
       </div>
     );
   }
@@ -133,7 +133,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
       <div className="head">
         <div>
           <h1 className="title">{reviewCount ? `${reviewCount} post${reviewCount === 1 ? "" : "s"} to review` : "Everything's approved"}</h1>
-          <p className="sub">Approve each post, or tell SocialPilot what to change. Approved posts are ready to go out on their date.</p>
+          <p className="sub">Approve each post, or tell Buzzbite what to change. Approved posts are ready to go out on their date.</p>
         </div>
         {reviewCount > 1 && <button className="btn" type="button" onClick={approveAll} disabled={busy !== null}>{busy === "all" ? "Approving…" : `Approve all ${reviewCount}`}</button>}
       </div>
@@ -198,7 +198,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
             ))}
           </div>
           <form className="ask" onSubmit={(e) => { e.preventDefault(); if (ask.trim().length > 2) revise({ instruction: ask.trim() }, "ask"); }}>
-            <input type="text" aria-label="Ask SocialPilot to change this post" placeholder="Or say what to change…" value={ask} onChange={(e) => setAsk(e.target.value)} disabled={busy !== null} />
+            <input type="text" aria-label="Ask Buzzbite to change this post" placeholder="Or say what to change…" value={ask} onChange={(e) => setAsk(e.target.value)} disabled={busy !== null} />
             <button className="btn btn-ink" type="submit" disabled={busy !== null || ask.trim().length < 3}>{busy === "ask" ? "Changing…" : "Change"}</button>
           </form>
           {message && <p className="notice" role="status">{message}</p>}

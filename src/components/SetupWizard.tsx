@@ -44,7 +44,7 @@ export function SetupWizard() {
     <form className="card stack" style={{ gap: 18, padding: 26 }} onSubmit={read}>
       {bar}
       <div><div className="small muted">Step 1 of 3</div><h1 className="title" style={{ marginTop: 8 }}>Tell us about the business</h1>
-        <p className="sub">Paste anything that describes it: a pitch deck, a concept note, website text or past posts. SocialPilot works out the voice, audience and content themes.</p></div>
+        <p className="sub">Paste anything that describes it: a pitch deck, a concept note, website text or past posts. Buzzbite works out the voice, audience and content themes.</p></div>
       <label className="field">Business name<input type="text" name="name" required maxLength={80} placeholder="e.g. Beamer" /></label>
       <label className="field">Website <span className="hint">Optional</span><input type="text" name="website" placeholder="example.com" /></label>
       <label className="field">About the business<span className="hint">The more detail, the better the posts.</span><textarea name="source" rows={10} maxLength={60000} placeholder="Paste a concept note, pitch deck text or website copy…" /></label>

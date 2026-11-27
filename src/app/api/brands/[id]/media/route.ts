@@ -4,7 +4,7 @@ import { getBrand, insertMedia, listMedia } from "@/lib/db";
 import { handle, notFound } from "@/lib/http";
 
 const Body = z.object({
-  url: z.url().refine((u) => new URL(u).hostname.endsWith(".public.blob.vercel-storage.com"), "Not a SocialPilot upload."),
+  url: z.url().refine((u) => new URL(u).hostname.endsWith(".public.blob.vercel-storage.com"), "Not a Buzzbite upload."),
   kind: z.enum(["image", "video"]),
   description: z.string().trim().max(500).default(""),
 });

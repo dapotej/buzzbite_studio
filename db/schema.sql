@@ -1,4 +1,4 @@
--- Brandloom schema. Every table hangs off a workspace so the app can become
+-- Buzzbite schema. Every table hangs off a workspace so the app can become
 -- multi-tenant (one workspace per customer) without a data migration.
 
 create extension if not exists pgcrypto;

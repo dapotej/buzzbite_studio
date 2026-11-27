@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** Everything SocialPilot knows about a brand. Stored as JSON on brands.profile. */
+/** Everything Buzzbite knows about a brand. Stored as JSON on brands.profile. */
 export const BrandProfileSchema = z.object({
   name: z.string(),
   oneLiner: z.string().describe("One sentence: what the business is and why it matters to customers."),

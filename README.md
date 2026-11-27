@@ -1,8 +1,8 @@
-# SocialPilot
+# Buzzbite
 
 Your social media on autopilot, in your brand.
 
-SocialPilot keeps a brand kit for each business (logo, colours, fonts, voice, audience, content themes, facts and photo style). From it, SocialPilot:
+Buzzbite keeps a brand kit for each business (logo, colours, fonts, voice, audience, content themes, facts and photo style). From it, Buzzbite:
 
 1. **Fills the calendar.** Pick your posting days; one click creates the month's posts for LinkedIn and Instagram, each a finished design with captions written for each platform.
 2. **Makes the visuals.** Photo posts get an AI photo in the brand's art direction (fal.ai, FLUX 3); video posts animate that photo into a short clip (fal.ai, Kling) with moving headlines; graphic posts use the brand's colours and type.

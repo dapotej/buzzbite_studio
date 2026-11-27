@@ -32,7 +32,7 @@ export function MediaLibrary({ brand, initial }: { brand: Brand; initial: Media[
       <div className="head">
         <div>
           <h1 className="title">Photos &amp; video</h1>
-          <p className="sub">Everything SocialPilot makes for {brand.name}&rsquo;s posts, plus your own uploads. Your own photos and clips make the strongest posts.</p>
+          <p className="sub">Everything Buzzbite makes for {brand.name}&rsquo;s posts, plus your own uploads. Your own photos and clips make the strongest posts.</p>
         </div>
         <label className="btn" htmlFor="media-files">{busy === "upload" ? "Uploading…" : "Upload photos or clips"}</label>
         <input id="media-files" type="file" multiple hidden accept="image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm" onChange={(e) => onFiles(e.target.files)} disabled={busy === "upload"} />
@@ -44,7 +44,7 @@ export function MediaLibrary({ brand, initial }: { brand: Brand; initial: Media[
       {progress && <p className="small muted">{progress}</p>}
       {lib.error && <p className="error" role="alert">{lib.error}</p>}
       {lib.items.length === 0 ? (
-        <div className="empty"><strong>Nothing here yet</strong>Photos and videos appear here as SocialPilot creates posts. You can also upload your own.</div>
+        <div className="empty"><strong>Nothing here yet</strong>Photos and videos appear here as Buzzbite creates posts. You can also upload your own.</div>
       ) : (
         <div className="lib">
           {lib.items.map((m) => (
