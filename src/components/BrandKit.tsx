@@ -129,6 +129,8 @@ export function BrandKit({ brand }: { brand: Brand }) {
         <LogoUpload colors={colors} light={logos.light} dark={logos.dark} onChange={setLogos} />
       </section>
 
+      <RefreshFromSite brand={brand} />
+
       <UpdatePosts brand={brand} />
 
       <SocialAccounts brand={brand} />
@@ -353,6 +355,80 @@ function ProductPhotos({ brandId, refs, onChange }: { brandId: string; refs: Pro
           {busy ? "Uploading…" : "Add product photos"}
           <input type="file" hidden multiple accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
         </label>
+      )}
+      {error && <p className="error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
+type Proposal = { profile: BrandProfile; logo: { light: string; dark: string | null } | null; site: { url: string; pages: number; fonts: string[] } };
+
+/** Reads the website again and lets the owner pick what to take: logo, colours and fonts, or the words. */
+function RefreshFromSite({ brand }: { brand: Brand }) {
+  const [website, setWebsite] = useState(brand.profile.website ?? "");
+  const [busy, setBusy] = useState<"read" | "apply" | null>(null);
+  const [error, setError] = useState("");
+  const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [take, setTake] = useState({ logo: true, look: true, words: false });
+
+  async function read() {
+    setBusy("read"); setError(""); setProposal(null);
+    const res = await fetch(`/api/brands/${brand.id}/refresh-site`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ website }) });
+    const data = await res.json().catch(() => ({}));
+    setBusy(null);
+    if (!res.ok) return setError(data.error ?? "Could not read the website.");
+    setProposal(data);
+    setTake({ logo: !!data.logo, look: true, words: false });
+  }
+  async function apply() {
+    if (!proposal) return;
+    setBusy("apply"); setError("");
+    const cur = brand.profile;
+    const next: BrandProfile = take.words
+      ? { ...proposal.profile, colors: take.look ? proposal.profile.colors : cur.colors, fonts: take.look ? proposal.profile.fonts : cur.fonts, imageStyle: cur.imageStyle || proposal.profile.imageStyle }
+      : { ...cur, website: proposal.site.url, ...(take.look ? { colors: proposal.profile.colors, fonts: proposal.profile.fonts } : {}) };
+    const body: Record<string, unknown> = { profile: next };
+    if (take.logo && proposal.logo) { body.logo_on_light = proposal.logo.light; body.logo_on_dark = proposal.logo.dark ?? brand.logo_on_dark; }
+    const res = await fetch(`/api/brands/${brand.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) { setBusy(null); return setError((await res.json().catch(() => ({}))).error ?? "Could not save."); }
+    window.location.reload();
+  }
+
+  const p = proposal?.profile;
+  const swatches = p ? [p.colors.primary, p.colors.dark, p.colors.light, ...p.colors.supporting] : [];
+  return (
+    <section className="card stack" id="refresh">
+      <h2>Refresh from your website</h2>
+      <p className="small muted">Changed your website? Read it again and choose what to bring in. Nothing changes until you apply it.</p>
+      <div className="row" style={{ alignItems: "flex-end" }}>
+        <label className="field" style={{ flex: "1 1 260px" }}>Website<input type="text" inputMode="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbusiness.com" /></label>
+        <button className="btn" type="button" onClick={read} disabled={busy !== null || !website.trim()}>{busy === "read" ? "Reading… (about a minute)" : "Read website"}</button>
+      </div>
+      {p && proposal && (
+        <div className="refresh-result stack">
+          <p className="notice">Read {proposal.site.pages} page{proposal.site.pages === 1 ? "" : "s"} of {new URL(proposal.site.url).hostname}. Choose what to use:</p>
+          <label className="take">
+            <input type="checkbox" checked={take.logo} disabled={!proposal.logo} onChange={(e) => setTake({ ...take, logo: e.target.checked })} />
+            <span><strong>Logo</strong>{proposal.logo ? <span className="take-logo"><img src={proposal.logo.light} alt="Logo found on the website" /></span> : <span className="small muted"> No logo found.</span>}</span>
+          </label>
+          <label className="take">
+            <input type="checkbox" checked={take.look} onChange={(e) => setTake({ ...take, look: e.target.checked })} />
+            <span><strong>Colours and fonts</strong>
+              <span className="take-swatches">{swatches.map((c, i) => <i key={i} style={{ background: c }} title={c} />)}</span>
+              <span className="small muted">{p.fonts.display} / {p.fonts.body}</span>
+            </span>
+          </label>
+          <label className="take">
+            <input type="checkbox" checked={take.words} onChange={(e) => setTake({ ...take, words: e.target.checked })} />
+            <span><strong>Words: one-liner, offerings, audience, voice, themes and facts</strong>
+              <span className="small muted">Replaces what&rsquo;s in the Brand kit now, including your own edits. {p.oneLiner}</span>
+            </span>
+          </label>
+          <div className="row">
+            <button className="btn btn-ink" type="button" onClick={apply} disabled={busy !== null || (!take.logo && !take.look && !take.words)}>{busy === "apply" ? "Applying…" : "Apply"}</button>
+            <button className="btn btn-ghost" type="button" onClick={() => setProposal(null)} disabled={busy !== null}>Cancel</button>
+          </div>
+        </div>
       )}
       {error && <p className="error" role="alert">{error}</p>}
     </section>
