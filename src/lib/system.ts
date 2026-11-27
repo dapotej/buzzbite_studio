@@ -5,6 +5,7 @@ import { signValue } from "./auth";
 import { getBrand, getPost } from "./db";
 import { advance } from "./pipeline";
 import { syncBrand, syncPost } from "./publish";
+import { syncResults } from "./results";
 
 // Work that runs with no one signed in: fal and Zernio webhooks, and the daily check.
 // Lookups here cross workspaces, so each piece of work then runs inside its own workspace.
@@ -65,6 +66,18 @@ export async function dailyCheck(): Promise<{ brands: number; pending: number; s
     } catch (e) {
       failed++;
       console.error("daily check failed for brand", o.brand_id, e);
+    }
+  }
+  // Results: read the latest numbers for every brand with connected accounts.
+  const social = (await client()`select id as brand_id, workspace_id from brands where social->>'profileId' is not null`) as Owner[];
+  for (const o of social) {
+    try {
+      await runAsWorkspace(o.workspace_id, async () => {
+        const brand = await getBrand(o.brand_id);
+        if (brand) await syncResults(brand, { force: true });
+      });
+    } catch (e) {
+      console.error("results sync failed for brand", o.brand_id, e);
     }
   }
   // Jobs that fal never finished: after a day, give up so the post can be retried.

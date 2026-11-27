@@ -5,7 +5,9 @@ import type { Platform, PublishState, SocialAccount } from "./types";
 // posts at their scheduled time. API reference: the official @zernio/node SDK types.
 const BASE = process.env.ZERNIO_BASE_URL || "https://zernio.com/api";
 
-export class PostingError extends Error {}
+export class PostingError extends Error {
+  constructor(message: string, public status = 0, public body: Record<string, unknown> = {}) { super(message); }
+}
 
 export const postingConfigured = () => Boolean(process.env.ZERNIO_API_KEY);
 
@@ -26,10 +28,12 @@ async function call<T>(method: string, path: string, opts: { query?: Record<stri
   const text = await res.text();
   const data = text ? (() => { try { return JSON.parse(text); } catch { return { error: text.slice(0, 300) }; } })() : {};
   if (!res.ok && res.status !== 207) {
-    if (res.status === 401) throw new PostingError("The Zernio API key is invalid. Check ZERNIO_API_KEY.");
-    if (res.status === 402 || data?.code === "PAYMENT_REQUIRED") throw new PostingError("Your Zernio plan does not cover this. Check your Zernio billing.");
-    if (res.status === 429) throw new PostingError("The posting service is busy. Try again in a minute.");
-    throw new PostingError(data?.error ? String(data.error) : `The posting service returned an error (${res.status}).`);
+    const fail = (m: string) => new PostingError(m, res.status, typeof data === "object" && data ? data : {});
+    if (res.status === 401) throw fail("The Zernio API key is invalid. Check ZERNIO_API_KEY.");
+    if (data?.requiresAddon) throw fail("Results need Zernio's analytics add-on. Turn it on in your Zernio billing settings.");
+    if (res.status === 402 || data?.code === "PAYMENT_REQUIRED") throw fail("Your Zernio plan does not cover this. Check your Zernio billing.");
+    if (res.status === 429) throw fail("The posting service is busy. Try again in a minute.");
+    throw fail(data?.error ? String(data.error) : `The posting service returned an error (${res.status}).`);
   }
   return data as T;
 }
@@ -140,4 +144,27 @@ export async function ensureWebhook(url: string, secret: string): Promise<{ exis
   if (list.some((w) => w.url === url)) return { existed: true };
   await call("POST", "/v1/webhooks/settings", { body: { name: "Buzzbite", url, secret, events: WEBHOOK_EVENTS, isActive: true } });
   return { existed: false };
+}
+
+// ---------- analytics: how posts did (needs Zernio's analytics add-on) ----------
+export type ZMetrics = { impressions?: number; reach?: number; views?: number; likes?: number; comments?: number; shares?: number; saves?: number; clicks?: number; follows?: number | null };
+export type ZAnalyticsPost = {
+  _id?: string; latePostId?: string | null; publishedAt?: string; platform?: string; platformPostUrl?: string;
+  analytics?: ZMetrics; platforms?: { platform?: string; platformPostUrl?: string | null; analytics?: ZMetrics | null }[];
+};
+
+/** One page of post metrics for a profile, newest first. */
+export async function getAnalytics(profileId: string, fromDate: string, page: number): Promise<{ posts: ZAnalyticsPost[]; hasAccess: boolean; pages: number }> {
+  const res = await call<{ posts?: ZAnalyticsPost[]; hasAnalyticsAccess?: boolean; pagination?: { pages?: number; totalPages?: number } }>("GET", "/v1/analytics", {
+    query: { profileId, fromDate, source: "late", limit: "100", page: String(page), sortBy: "date", order: "desc" },
+  });
+  return { posts: res.posts ?? [], hasAccess: res.hasAnalyticsAccess !== false, pages: res.pagination?.pages ?? res.pagination?.totalPages ?? 1 };
+}
+
+/** Daily follower counts per connected account. */
+export async function getFollowerStats(profileId: string, fromDate: string): Promise<Record<string, { date?: string; followers?: number }[]>> {
+  const res = await call<{ stats?: Record<string, { date?: string; followers?: number }[]> }>("GET", "/v1/accounts/follower-stats", {
+    query: { profileId, fromDate, granularity: "daily" },
+  });
+  return res.stats ?? {};
 }

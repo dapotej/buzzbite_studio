@@ -153,7 +153,7 @@ export async function suggestLook(brand: BrandProfile, avoid?: Look): Promise<Lo
 export async function planPosts(
   brand: BrandProfile,
   dates: string[],
-  context: { recentTitles: string[]; trends: string; today: string },
+  context: { recentTitles: string[]; trends: string; today: string; results?: string },
 ): Promise<(PostDraft & { date: string })[]> {
   const Schema = z.object({ posts: z.array(PostDraftSchema.extend({ date: z.string().describe("One of the given dates, YYYY-MM-DD.") })) });
   const out = await structured({
@@ -172,7 +172,7 @@ Planning rules:
     : "about half photo templates (photo, photo_band, photo_frame, photo_stat), about a fifth video, the rest graphics (statement, stat, list, chat, poster)"}; about one carousel a week (for educational or step-by-step topics) and one reel a fortnight (for stories, launches and quick tips worth narrating). Never use the same template on two consecutive dates.
 - Each post must say something different. Do not repeat these recent posts:
 ${context.recentTitles.slice(0, 40).map((t) => `  - ${t}`).join("\n") || "  (none yet)"}
-${context.trends ? `\nWhat is happening now (from today's trend research):\n${context.trends}` : ""}`,
+${context.trends ? `\nWhat is happening now (from today's trend research):\n${context.trends}` : ""}${context.results ? `\n\n${context.results}` : ""}`,
     schema: Schema,
     effort: "medium",
     maxTokens: 64000,

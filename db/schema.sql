@@ -176,3 +176,29 @@ create table if not exists password_resets (
   used_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+-- v9: results. Per-post metrics and follower counts read from Zernio's analytics.
+create table if not exists post_metrics (
+  post_id uuid not null references posts(id) on delete cascade,
+  platform text not null,
+  brand_id uuid not null references brands(id) on delete cascade,
+  impressions int not null default 0, reach int not null default 0, views int not null default 0,
+  likes int not null default 0, comments int not null default 0, shares int not null default 0,
+  saves int not null default 0, clicks int not null default 0, follows int not null default 0,
+  url text, published_at timestamptz, synced_at timestamptz not null default now(),
+  primary key (post_id, platform)
+);
+create index if not exists post_metrics_brand on post_metrics (brand_id, published_at);
+create table if not exists brand_followers (
+  brand_id uuid not null references brands(id) on delete cascade,
+  platform text not null,
+  day date not null,
+  followers int not null,
+  primary key (brand_id, platform, day)
+);
+create table if not exists brand_analytics (
+  brand_id uuid primary key references brands(id) on delete cascade,
+  synced_at timestamptz,
+  access boolean,                     -- false when the Zernio analytics add-on is off
+  error text
+);

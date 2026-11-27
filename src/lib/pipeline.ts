@@ -5,6 +5,7 @@ import {
 } from "./db";
 import { checkJob, describeFalError, queueImage, queueReferenceImage, queueVideo } from "./media";
 import { advanceReelMedia, startReelMedia } from "./reels";
+import { performanceNotes } from "./results";
 import { TEMPLATES, type Brand, type Post, type PostSpec } from "./types";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -36,6 +37,7 @@ export async function fillDates(brand: Brand, from: string, to: string, limit = 
     recentTitles: await recentPostTitles(brand.id),
     trends: trends ? `${trends.summary}\n${trends.items.slice(0, 8).map((i) => `- ${i.title}: ${i.whyNow}`).join("\n")}` : "",
     today: todayLong(),
+    results: await performanceNotes(brand.id),
   });
   for (const d of drafts) await savePost(brand, d, d.date);
   return { made: drafts.length, remaining: Math.max(0, empty.length - drafts.length) };

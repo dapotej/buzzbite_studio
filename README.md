@@ -68,6 +68,16 @@ connected accounts and publishes at the scheduled time (so the app needs no sche
   records an estimated price per model. System health (internal only) shows this month's cost per workspace against its
   plan price, and the most expensive posts.
 
+## Results
+
+- Per-post numbers (reach, impressions, likes, comments, shares, saves, clicks) and daily follower counts come from
+  Zernio's analytics (needs the analytics add-on on the Zernio account) and are stored in `post_metrics` and
+  `brand_followers` (`src/lib/results.ts`). They refresh when the Results page is opened (at most hourly) and in the
+  daily check.
+- The Results page shows totals against the previous period, followers, engagement by design and by theme, the best
+  and weakest posts, and every post with its numbers.
+- Once a brand has 8 posts with numbers, the planner gets a summary of what worked and leans towards it.
+
 ## Security
 
 - Sign-in is rate limited (8 failed tries per account or 30 per address in 15 minutes); so are reset requests and
