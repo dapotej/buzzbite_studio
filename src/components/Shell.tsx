@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogoMark } from "./Logo";
+import { Wordmark } from "./Logo";
 import { inkOn } from "@/templates/PostCanvas";
 import type { Brand } from "@/lib/types";
 
@@ -31,7 +31,7 @@ export function Shell({ brand, brands, current, reviewCount, children }: {
   return (
     <div className="app">
       <aside className="side" aria-label="Buzzbite">
-        <Link href="/" className="logo"><LogoMark />Buzzbite</Link>
+        <Link href="/" className="logo"><Wordmark height={22} /></Link>
         <details className="brand-pick">
           <summary><BrandDot brand={brand} /><span>{brand.name}<small>LinkedIn · Instagram</small></span></summary>
           <div className="menu">

@@ -32,6 +32,19 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
     return () => clearTimeout(t);
   }, [post, brand.id, router]);
 
+  // While a post is going out (or due), check its result until it lands.
+  const pubState = post?.publishing.state;
+  useEffect(() => {
+    if (!post || (pubState !== "publishing" && pubState !== "scheduled")) return;
+    if (pubState === "scheduled" && post.publishing.scheduledFor && new Date(post.publishing.scheduledFor + ":00Z").getTime() > Date.now() + 14 * 3600e3) return;
+    const t = setInterval(async () => {
+      const res = await fetch(`/api/posts/${post.id}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ check: true }) }).catch(() => null);
+      const data = res?.ok ? await res.json().catch(() => null) : null;
+      if (data && data.publishing?.state !== pubState) router.refresh();
+    }, pubState === "publishing" ? 5000 : 60000);
+    return () => clearInterval(t);
+  }, [post, pubState, router]);
+
   if (!post) {
     return (
       <div className="wrap narrow">
