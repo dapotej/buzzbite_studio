@@ -49,6 +49,7 @@ export async function Shell({ brand, brands, current, reviewCount, children }: {
             <div className="menu-extra">
               <a href="/settings">Settings</a>
               {internal && <a href="/leads">Website sign-ups</a>}
+              {internal && <a href="/health">System health</a>}
               <a href="/logout">Sign out</a>
             </div>
           </div>
@@ -65,6 +66,7 @@ export async function Shell({ brand, brands, current, reviewCount, children }: {
           <span>Posts on {brand.settings.days.map((d) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d]).join(", ")} at {brand.settings.time}.</span>
           <a href="/settings">Settings{session ? ` · ${session.user.name || session.user.email}` : ""}</a>
           {internal && <a href="/leads">Website sign-ups</a>}
+          {internal && <a href="/health">System health</a>}
           <a href="/logout">Sign out</a>
         </div>
       </aside>

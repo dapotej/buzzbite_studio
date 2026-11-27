@@ -1,6 +1,7 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
 import { requireSession } from "./accounts";
+import { noteAlert, resolveAlerts } from "./alerts";
 import { EMPTY_PUBLISHING, type Brand, type BrandProfile, type BrandSettings, type BrandSocial, type Idea, type Media, type Post, type PostSpec, type PostStatus, type Publishing, type TrendItem, type TrendReport } from "./types";
 
 function client() {
@@ -158,7 +159,12 @@ export async function updatePost(
   const rows = await client()`update posts set spec = ${JSON.stringify(n.spec)}::jsonb, linkedin = ${n.linkedin}, instagram = ${n.instagram},
     status = ${n.status}, publish_on = ${n.publish_on}, title = ${n.title}, pillar = ${n.pillar}, issue = ${n.issue}, updated_at = now()
     where id = ${id} returning *`;
-  return toPost(rows[0]);
+  const post = toPost(rows[0]);
+  if ("issue" in patch && patch.issue !== cur.issue) {
+    if (patch.issue) await noteAlert(post, "media", patch.issue);
+    else await resolveAlerts(post.id, "media");
+  }
+  return post;
 }
 /** Saves auto-posting state without touching updated_at, which keys the post's design. */
 export async function setPublishing(id: string, patch: Partial<Publishing>): Promise<Post | null> {
@@ -166,7 +172,12 @@ export async function setPublishing(id: string, patch: Partial<Publishing>): Pro
   if (!cur) return null;
   const next = { ...cur.publishing, ...patch };
   const rows = await client()`update posts set publishing = ${JSON.stringify(next)}::jsonb where id = ${id} returning *`;
-  return toPost(rows[0]);
+  const post = toPost(rows[0]);
+  const failed = next.state === "failed" || next.state === "partial";
+  if (next.error && (next.error !== cur.publishing.error || next.state !== cur.publishing.state)) await noteAlert(post, failed ? "publish" : "schedule", next.error);
+  else if (failed && cur.publishing.state !== next.state) await noteAlert(post, "publish", "The post did not go out on every platform.");
+  else if (!next.error && !failed) await resolveAlerts(post.id);
+  return post;
 }
 /** Posts handed to the posting service that have not finished yet. */
 export async function listPostsInFlight(brandId: string): Promise<Post[]> {

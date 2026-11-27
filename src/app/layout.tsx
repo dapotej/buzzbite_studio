@@ -4,7 +4,7 @@ import "@/templates/post.css";
 
 export const metadata: Metadata = {
   title: "Buzzbite",
-  description: "Your social media on autopilot, in your brand.",
+  description: "Your social media. Taken care of.",
   icons: { icon: "/icon.png", apple: "/apple-icon.png" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, viewportFit: "cover" };

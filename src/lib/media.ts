@@ -2,6 +2,7 @@ import "server-only";
 import { fal } from "@fal-ai/client";
 import { put } from "@vercel/blob";
 import sharp from "sharp";
+import { signValue } from "./auth";
 import { assertVideoAllowed } from "./limits";
 
 // Model endpoints are settings, so a newer model can be swapped in without a code change.
@@ -29,6 +30,14 @@ export function describeFalError(e: unknown): string {
   return `fal.ai error${err?.status ? ` ${err.status}` : ""}${text ? `: ${text}` : err?.message ? `: ${err.message}` : ""}.`;
 }
 
+// When a job finishes, fal calls the app back so the post moves on without anyone's browser open.
+// Only in production, where fal can reach the app. The token keeps strangers from calling it.
+async function hook(): Promise<{ webhookUrl?: string }> {
+  if (process.env.VERCEL_ENV !== "production" && process.env.FAL_WEBHOOKS !== "1") return {};
+  const base = (process.env.APP_URL || "https://app.buzzbite.io").replace(/\/$/, "");
+  return { webhookUrl: `${base}/api/public/fal?token=${await signValue("fal")}` };
+}
+
 function configure() {
   if (!process.env.FAL_KEY) throw new MediaError("AI images need a fal.ai key. Add FAL_KEY in Vercel's environment variables.");
   fal.config({ credentials: process.env.FAL_KEY });
@@ -37,7 +46,7 @@ function configure() {
 /** Queues an image generation and returns fal's request id. */
 export async function queueImage(prompt: string, aspect: "4:5" | "9:16" = "4:5"): Promise<{ endpoint: string; requestId: string }> {
   configure();
-  const res = await fal.queue.submit(IMAGE_MODEL, { input: { prompt, aspect_ratio: aspect, num_images: 1 } });
+  const res = await fal.queue.submit(IMAGE_MODEL, { input: { prompt, aspect_ratio: aspect, num_images: 1 }, ...(await hook()) });
   return { endpoint: IMAGE_MODEL, requestId: res.request_id };
 }
 
@@ -46,6 +55,7 @@ export async function queueReferenceImage(prompt: string, referenceUrls: string[
   configure();
   const res = await fal.queue.submit(REFERENCE_MODEL, {
     input: { prompt, image_urls: referenceUrls.slice(0, 4), image_size: aspect === "9:16" ? { width: 1024, height: 1824 } : { width: 1024, height: 1280 }, quality: "high", num_images: 1, output_format: "jpeg" },
+    ...(await hook()),
   });
   return { endpoint: REFERENCE_MODEL, requestId: res.request_id };
 }
@@ -54,21 +64,21 @@ export async function queueReferenceImage(prompt: string, referenceUrls: string[
 /** Queues a voice-over line. */
 export async function queueVoice(text: string, voice: string): Promise<{ endpoint: string; requestId: string }> {
   configure();
-  const res = await fal.queue.submit(VOICE_MODEL, { input: { text, voice } });
+  const res = await fal.queue.submit(VOICE_MODEL, { input: { text, voice }, ...(await hook()) });
   return { endpoint: VOICE_MODEL, requestId: res.request_id };
 }
 
 /** Queues an instrumental music bed of about `seconds`. */
 export async function queueMusic(prompt: string, seconds: number): Promise<{ endpoint: string; requestId: string }> {
   configure();
-  const res = await fal.queue.submit(MUSIC_MODEL, { input: { prompt: `${prompt}. Instrumental only, no vocals, suitable under a voice-over.`, music_length_ms: Math.round(Math.min(60, Math.max(10, seconds)) * 1000) } });
+  const res = await fal.queue.submit(MUSIC_MODEL, { input: { prompt: `${prompt}. Instrumental only, no vocals, suitable under a voice-over.`, music_length_ms: Math.round(Math.min(60, Math.max(10, seconds)) * 1000) }, ...(await hook()) });
   return { endpoint: MUSIC_MODEL, requestId: res.request_id };
 }
 
 export async function queueVideo(prompt: string, imageUrl: string, postId?: string): Promise<{ endpoint: string; requestId: string }> {
   await assertVideoAllowed(postId); // plan limit: AI videos per month (a reel counts once)
   configure();
-  const res = await fal.queue.submit(VIDEO_MODEL, { input: { prompt, image_url: imageUrl, duration: "5", aspect_ratio: "9:16" } });
+  const res = await fal.queue.submit(VIDEO_MODEL, { input: { prompt, image_url: imageUrl, duration: "5", aspect_ratio: "9:16" }, ...(await hook()) });
   return { endpoint: VIDEO_MODEL, requestId: res.request_id };
 }
 

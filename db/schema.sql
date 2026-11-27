@@ -133,3 +133,30 @@ alter table workspaces add column if not exists plan text not null default 'tria
 alter table workspaces add column if not exists plan_status text not null default 'trialing';
 alter table workspaces add column if not exists trial_ends_at timestamptz;
 alter table workspaces add column if not exists billing jsonb not null default '{}'::jsonb;
+
+-- v7: alerts for work that failed while no one was watching; usage costs.
+create table if not exists alerts (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  brand_id uuid not null references brands(id) on delete cascade,
+  post_id uuid references posts(id) on delete cascade,
+  kind text not null,                 -- media | schedule | publish
+  message text not null,
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz
+);
+create unique index if not exists alerts_open_one on alerts (post_id, kind) where resolved_at is null;
+create index if not exists alerts_workspace_open on alerts (workspace_id) where resolved_at is null;
+create table if not exists usage_events (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  brand_id uuid references brands(id) on delete set null,
+  post_id uuid references posts(id) on delete set null,
+  provider text not null,             -- anthropic | fal
+  model text not null,
+  action text not null default '',    -- what it was for, e.g. plan, revise, image, video
+  units jsonb not null default '{}'::jsonb,
+  cost_usd numeric(10,4) not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists usage_workspace_month on usage_events (workspace_id, created_at);

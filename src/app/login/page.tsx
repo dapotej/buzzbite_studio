@@ -72,7 +72,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         </>
       ) : (
         <>
-          <p className="lede">Your social media on autopilot, in your brand.</p>
+          <p className="lede">Your social media. Taken care of.</p>
           <form action={signIn} className="card stack">
             <input type="hidden" name="next" value={safeNext(next)} />
             <label className="field" htmlFor="email">Email<input id="email" name="email" type="email" autoComplete="email" required autoFocus /></label>

@@ -1,6 +1,7 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
 import { cookies } from "next/headers";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { cache } from "react";
 import { SESSION_COOKIE, sessionUserId } from "./auth";
 import { PLANS, TRIAL_DAYS, type Plan, type PlanId, type PlanStatus } from "./plans";
@@ -146,7 +147,21 @@ export const getSession = cache(async (): Promise<Session | null> => {
   return { user: plain, workspace, role: m.role, plan: PLANS[workspace.plan] ?? PLANS.trial };
 });
 
+// Background work (webhooks, the daily check) runs for one workspace with no one signed in.
+// Every scoped query and plan limit then applies to that workspace, as for a signed-in owner.
+const systemContext = new AsyncLocalStorage<Session>();
+export const SYSTEM_USER: User = { id: "00000000-0000-0000-0000-000000000000", email: "system@buzzbite.io", name: "Buzzbite", created_at: new Date(0).toISOString() };
+
+export async function runAsWorkspace<T>(workspaceId: string, fn: () => Promise<T>): Promise<T> {
+  const workspace = await getWorkspace(workspaceId);
+  if (!workspace) throw new AuthError("No such workspace.");
+  return systemContext.run({ user: SYSTEM_USER, workspace, role: "owner", plan: PLANS[workspace.plan] ?? PLANS.trial }, fn);
+}
+export const inSystemContext = () => systemContext.getStore() !== undefined;
+
 export async function requireSession(): Promise<Session> {
+  const system = systemContext.getStore();
+  if (system) return system;
   const s = await getSession();
   if (!s) throw new AuthError("Sign in first.");
   return s;

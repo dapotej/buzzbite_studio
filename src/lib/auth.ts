@@ -15,6 +15,14 @@ function secret(): string {
   return s;
 }
 
+/** A signature only this app can make, for links that outside services call back on (webhooks). */
+export async function signValue(message: string): Promise<string> {
+  return hmac(secret(), `value:${message}`);
+}
+export async function signatureMatches(message: string, sig: string | null | undefined): Promise<boolean> {
+  return Boolean(sig) && same(await signValue(message), sig!);
+}
+
 function same(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;

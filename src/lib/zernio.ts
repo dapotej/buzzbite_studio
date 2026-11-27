@@ -128,3 +128,16 @@ function toState(s: string | undefined): PublishState {
   if (s === "published" || s === "partial" || s === "failed" || s === "cancelled" || s === "publishing") return s;
   return "scheduled";
 }
+
+// ---------- webhooks: Zernio tells the app when a post goes out or fails ----------
+const WEBHOOK_EVENTS = ["post.published", "post.failed", "post.partial", "post.platform.published", "post.platform.failed", "post.cancelled"];
+type ZWebhook = { _id?: string; id?: string; url?: string; name?: string; isActive?: boolean; events?: string[] };
+
+/** Registers the app's webhook with Zernio, once. Returns whether it was already there. */
+export async function ensureWebhook(url: string, secret: string): Promise<{ existed: boolean }> {
+  const res = await call<{ webhooks?: ZWebhook[]; settings?: ZWebhook[] } | ZWebhook[]>("GET", "/v1/webhooks/settings");
+  const list = Array.isArray(res) ? res : res.webhooks ?? res.settings ?? [];
+  if (list.some((w) => w.url === url)) return { existed: true };
+  await call("POST", "/v1/webhooks/settings", { body: { name: "Buzzbite", url, secret, events: WEBHOOK_EVENTS, isActive: true } });
+  return { existed: false };
+}
