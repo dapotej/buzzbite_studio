@@ -64,7 +64,7 @@ const brandBrief = ({ look: _look, ...b }: BrandProfile) => JSON.stringify(b, nu
 function brandStyle(b: BrandProfile): string {
   const l = b.look;
   const out = ["This brand's style (follow it; it is what makes the brand's feed its own):"];
-  if (l.templates.length) out.push(`- Favourite designs, best first: ${l.templates.join(", ")}. Use these for about two thirds of posts; use others now and then for variety.`);
+  if (l.templates.length) out.push(`- Favourite designs, best first: ${l.templates.join(", ")}. Use these for about half the posts; use the other designs for the rest so the feed never feels repetitive.`);
   if (l.headlines.trim()) out.push(`- Headlines: ${l.headlines.trim()}`);
   out.push(l.emphasis === "none"
     ? "- Never wrap words in *asterisks*: this brand's headlines have no highlighted phrase."
@@ -90,7 +90,7 @@ Design rules:
 - When the art direction describes how the brand's product looks or is mounted (its shape, orientation, placement, camera angle), repeat that description word for word in the imagePrompt whenever the product appears. Image models get these details wrong unless they are spelled out.
 - video also needs motionPrompt (subtle, realistic camera or subject movement) and 2-3 lines.
 - Fill only the fields the chosen template uses; set unused strings to "" and unused arrays to [].
-- theme: pick light or dark for the non-photo templates; photo templates ignore it.`;
+- theme: the background of graphic designs: light, dark, brand (the main brand colour) or accent (a supporting colour). Photo designs ignore it. Vary it so neighbouring posts look different.`;
 
 const CAPTION_RULES = `Captions:
 - linkedin: 60-150 words, hook in the first line, line breaks between ideas, one call to action, at most 3 hashtags at the end.
@@ -169,7 +169,9 @@ Planning rules:
 - Spread posts across the brand's pillars; tie posts to the season, holidays and events near their date where it fits the audience.
 - Visual mix: ${brand.look.templates.length
     ? `lean on the brand's favourite designs (${brand.look.templates.join(", ")}), with others for variety`
-    : "about half photo templates (photo, photo_band, photo_frame, photo_stat), about a fifth video, the rest graphics (statement, stat, list, chat, poster)"}; about one carousel a week (for educational or step-by-step topics) and one reel a fortnight (for stories, launches and quick tips worth narrating). Never use the same template on two consecutive dates.
+    : "about half photo templates (photo, photo_band, photo_frame, photo_stat), about a fifth video, the rest graphics (statement, stat, list, chat, poster)"}; about one carousel a week (for educational or step-by-step topics) and one reel a fortnight (for stories, launches and quick tips worth narrating). Never use the same template on two consecutive dates, and use at least five different designs in any seven posts.
+- Content formats: mix them, never the same format twice in a row: a practical tip, myth vs fact, an opinion or hot take, behind the scenes, a question to the audience, a checklist, a short story or example, proof or a number, a product or service spotlight, a seasonal moment. Match the design to the format (versus for myth vs fact, quote for a belief, social for a hot take, note for a to-do or checklist, chat for a customer conversation, photo or split for places, people and products).
+- Topics: every post in this batch has its own topic and angle. At most one post per occasion (one Christmas post, one end-of-year post, one planning post), however big the season.
 - Each post must say something different. Do not repeat these recent posts:
 ${context.recentTitles.slice(0, 40).map((t) => `  - ${t}`).join("\n") || "  (none yet)"}
 ${context.trends ? `\nWhat is happening now (from today's trend research):\n${context.trends}` : ""}${context.results ? `\n\n${context.results}` : ""}`,

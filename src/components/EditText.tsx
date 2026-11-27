@@ -2,9 +2,9 @@
 import { useEffect, useState } from "react";
 import type { PostSpec, Slide, TemplateId } from "@/lib/types";
 
-type TextKey = "kicker" | "headline" | "sub" | "note" | "big" | "bigLabel" | "endline" | "cta";
+type TextKey = "kicker" | "headline" | "quote" | "sub" | "note" | "big" | "bigLabel" | "endline" | "cta";
 const LABELS: Record<TextKey, string> = {
-  kicker: "Label", headline: "Headline", sub: "Line under the headline", note: "Tag line",
+  kicker: "Label", headline: "Headline", quote: "Quote or post text", sub: "Line under the headline", note: "Tag line",
   big: "Big figure or title", bigLabel: "Words under the figure", endline: "Closing line", cta: "Call to action",
 };
 // The text each design shows. Fields with text in them are always shown too.
@@ -13,6 +13,7 @@ const USES: Record<TemplateId, TextKey[]> = {
   photo_stat: ["kicker", "big", "bigLabel", "headline"], video: ["kicker", "headline"], statement: ["kicker", "headline", "sub"],
   stat: ["kicker", "big", "headline", "sub"], list: ["kicker", "headline"], chat: ["kicker", "headline"], poster: ["big", "headline", "note"],
   motion: ["kicker", "endline", "cta"], carousel: [], reel: ["kicker", "headline"],
+  quote: ["kicker", "quote", "sub"], split: ["kicker", "headline", "sub"], versus: ["kicker", "headline"], note: ["headline"], social: ["quote", "sub"],
 };
 
 /** Edits the words on a post's design. Changes preview live; Save stores them. */
@@ -48,11 +49,11 @@ export function EditText({ spec, slide, onPreview, onSave, busy }: {
           {(s.layout === "stat" || s.big) && field("Big figure", s.big, (v) => setSlide({ big: v }))}
         </>
       ) : (
-        keys.map((k) => field(LABELS[k], draft[k], (v) => set({ ...draft, [k]: v }), k === "headline" ? hl : undefined))
+        keys.map((k) => field(k === "sub" && draft.template === "quote" ? "Who said it" : LABELS[k], draft[k], (v) => set({ ...draft, [k]: v }), k === "headline" || k === "quote" ? hl : undefined, k === "quote" ? 3 : 1))
       )}
       {(draft.template === "video" || draft.template === "motion" || draft.lines.length > 0) &&
         field("Lines that appear one by one", draft.lines.join("\n"), (v) => set({ ...draft, lines: v.split("\n") }), "One per line.", 3)}
-      {(draft.template === "list" || draft.items.length > 0) && draft.items.map((it, i) => (
+      {(["list", "versus", "note"].includes(draft.template) || draft.items.length > 0) && draft.items.map((it, i) => (
         <div className="row" key={i} style={{ gap: 8, alignItems: "flex-end" }}>
           {field(`Item ${i + 1}`, it.title, (v) => set({ ...draft, items: draft.items.map((x, j) => (j === i ? { ...x, title: v } : x)) }))}
           {field("Detail", it.detail, (v) => set({ ...draft, items: draft.items.map((x, j) => (j === i ? { ...x, detail: v } : x)) }))}

@@ -41,7 +41,7 @@ function toBrand(r: Row): Brand {
 /** Fills fields added after a post was saved, so older posts render and revise safely. */
 function normalizeSpec(s: Partial<PostSpec>): PostSpec {
   return {
-    template: s.template ?? "statement", theme: s.theme ?? "dark", kicker: s.kicker ?? "", headline: s.headline ?? "", sub: s.sub ?? "",
+    template: s.template ?? "statement", theme: s.theme ?? "dark", kicker: s.kicker ?? "", headline: s.headline ?? "", quote: s.quote ?? "", sub: s.sub ?? "",
     note: s.note ?? "", big: s.big ?? "", bigLabel: s.bigLabel ?? "", items: s.items ?? [], bubbles: s.bubbles ?? [], lines: s.lines ?? [],
     endline: s.endline ?? "", cta: s.cta ?? "", imagePrompt: s.imagePrompt ?? "", motionPrompt: s.motionPrompt ?? "", showsProduct: s.showsProduct ?? false,
     slides: s.slides ?? [], scenes: s.scenes ?? [], music: s.music ?? "", reel: s.reel ?? null,

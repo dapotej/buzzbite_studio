@@ -12,41 +12,76 @@ const pairsToText = (p: { name: string; description: string }[]) => p.map((x) =>
 const textToPairs = (s: string) => lines(s).map((l) => { const i = l.indexOf(":"); return i > 0 ? { name: l.slice(0, i).trim(), description: l.slice(i + 1).trim() } : { name: l, description: "" }; });
 
 const SAMPLE: PostSpec = {
-  template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", sub: "", note: "", big: "", bigLabel: "",
+  template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", quote: "", sub: "", note: "", big: "", bigLabel: "",
   items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", showsProduct: false, slides: [], scenes: [], music: "", media: null, clip: null,
 };
-
-const SAMPLE_LIST: PostSpec = {
-  ...SAMPLE, template: "list", theme: "light", kicker: "How it works", headline: "Three steps to *a full feed*",
-  items: [{ title: "Tell us about the brand", detail: "" }, { title: "Approve the week's posts", detail: "" }, { title: "We post them for you", detail: "" }],
-};
-const SAMPLE_PHOTO = (url: string): PostSpec => ({ ...SAMPLE, template: "photo", kicker: "New", headline: "Made for *the way you work*", media: { id: "sample", url, kind: "image" } });
 
 const LOOK_LABELS: Record<keyof typeof LOOK_OPTIONS, string> = {
   type: "Headline type", emphasis: "Key words", corners: "Corners", align: "Alignment", photo: "Photos", surface: "Background",
   texture: "Background texture", labels: "Labels", logo: "Logo", spacing: "Scale",
 };
 
-/** The brand's look: how posts are designed beyond colour and fonts. Claude can suggest one from the brand. */
-function LookEditor({ brandId, look, onChange }: { brandId: string; look: Look; onChange: (l: Look) => void }) {
+/** Ready-made styles. Each keeps the brand's colours, fonts, favourite designs and headline habits. */
+const STYLES: { name: string; look: Partial<Look> }[] = [
+  { name: "Classic bold", look: { type: "heavy", emphasis: "classic", corners: "soft", align: "left", photo: "natural", surface: "mixed", texture: "grid", labels: "solid", logo: "bottom", spacing: "bold" } },
+  { name: "Creator pop", look: { type: "heavy", emphasis: "highlight", corners: "round", align: "center", photo: "warm", surface: "mixed", texture: "dots", labels: "solid", logo: "bottom", spacing: "bold" } },
+  { name: "Editorial calm", look: { type: "editorial", emphasis: "italic", corners: "sharp", align: "left", photo: "natural", surface: "light", texture: "none", labels: "plain", logo: "top", spacing: "airy" } },
+  { name: "Night signal", look: { type: "caps", emphasis: "color", corners: "sharp", align: "left", photo: "vivid", surface: "dark", texture: "lines", labels: "outline", logo: "top", spacing: "bold" } },
+  { name: "Soft and warm", look: { type: "light", emphasis: "underline", corners: "round", align: "center", photo: "warm", surface: "mixed", texture: "grain", labels: "outline", logo: "bottom", spacing: "airy" } },
+  { name: "Bold blocks", look: { type: "caps", emphasis: "highlight", corners: "sharp", align: "left", photo: "duotone", surface: "colour", texture: "none", labels: "solid", logo: "bottom", spacing: "bold" } },
+];
+const SAMPLE_STYLE: PostSpec = { ...SAMPLE, template: "statement", theme: "light", kicker: "Tip", headline: "Post less. Say *more*.", sub: "One good idea a day beats five rushed ones." };
+const SAMPLE_NOTE: PostSpec = { ...SAMPLE, template: "note", theme: "accent", headline: "This week", items: [{ title: "Approve posts", detail: "" }, { title: "Reply to comments", detail: "" }, { title: "That's it", detail: "" }] };
+
+/** Pick a style by looking at it. Fine details are folded away. */
+function StylePicker({ brand, profile, look, logos, onChange }: {
+  brand: Brand; profile: BrandProfile; look: Look; logos: { light: string | null; dark: string | null }; onChange: (l: Look) => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const same = (l: Partial<Look>) => (Object.keys(l) as (keyof Look)[]).every((k) => look[k] === l[k]);
   async function suggest() {
     setBusy(true); setError("");
-    const res = await fetch(`/api/brands/${brandId}/look`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ different: true }) });
+    const res = await fetch(`/api/brands/${brand.id}/look`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ different: true }) });
     const body = await res.json().catch(() => ({}));
     setBusy(false);
-    if (!res.ok) return setError(body.error ?? "Could not suggest a look.");
+    if (!res.ok) return setError(body.error ?? "Could not suggest a style.");
     onChange(body.look);
   }
-  const toggle = (t: TemplateId) => onChange({ ...look, templates: look.templates.includes(t) ? look.templates.filter((x) => x !== t) : [...look.templates, t] });
+  const mine = !STYLES.some((st) => same(st.look));
+  const options = [...(mine ? [{ name: "Your current style", look }] : []), ...STYLES];
   return (
     <div className="stack">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <label className="field" style={{ flex: "1 1 220px" }}>Look name<input type="text" value={look.name} onChange={(e) => onChange({ ...look, name: e.target.value })} /></label>
-        <button type="button" className="btn" onClick={suggest} disabled={busy}>{busy ? "Thinking…" : "Suggest a different look"}</button>
+      <div className="style-grid" role="radiogroup" aria-label="Style">
+        {options.map((st) => {
+          const on = same(st.look);
+          const preview = { ...profile, look: { ...look, ...st.look } };
+          return (
+            <button type="button" key={st.name} role="radio" aria-checked={on} className={`style-card${on ? " on" : ""}`}
+              onClick={() => onChange({ ...look, ...st.look, name: st.name })}>
+              <ScaledPost brand={preview} spec={SAMPLE_STYLE} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />
+              <span>{on ? "✓ " : ""}{st.name}</span>
+            </button>
+          );
+        })}
       </div>
-      {error && <p className="error" role="alert">{error}</p>}
+      <div className="row" style={{ gap: 8 }}>
+        <button type="button" className="btn" onClick={suggest} disabled={busy}>{busy ? "Thinking…" : `Suggest a new style for ${brand.name}`}</button>
+        {error && <span className="error" role="alert">{error}</span>}
+      </div>
+      <details className="fine-tune">
+        <summary>Fine-tune the style</summary>
+        <FineTune look={look} onChange={onChange} />
+      </details>
+    </div>
+  );
+}
+
+/** Every look setting, for people who want control. */
+function FineTune({ look, onChange }: { look: Look; onChange: (l: Look) => void }) {
+  const toggle = (t: TemplateId) => onChange({ ...look, templates: look.templates.includes(t) ? look.templates.filter((x) => x !== t) : [...look.templates, t] });
+  return (
+    <div className="stack" style={{ paddingTop: 12 }}>
       <div className="look-grid">
         {(Object.keys(LOOK_OPTIONS) as (keyof typeof LOOK_OPTIONS)[]).map((k) => (
           <label className="field" key={k}>{LOOK_LABELS[k]}
@@ -57,7 +92,7 @@ function LookEditor({ brandId, look, onChange }: { brandId: string; look: Look; 
         ))}
       </div>
       <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
-        <legend>Favourite designs<span className="hint"> Used for most posts; the others still appear now and then.</span></legend>
+        <legend>Favourite designs<span className="hint"> Used for about half the posts; the others fill the rest.</span></legend>
         <div className="chips">
           {TEMPLATE_IDS.map((t) => (
             <button type="button" key={t} className={`chip-toggle${look.templates.includes(t) ? " on" : ""}`} aria-pressed={look.templates.includes(t)} onClick={() => toggle(t)}>{TEMPLATES[t].name}</button>
@@ -130,6 +165,9 @@ export function ColourPicker({ colors, onChange }: { colors: BrandProfile["color
   );
 }
 
+type Tab = "look" | "words" | "photos" | "posting" | "more";
+const TABS: [Tab, string][] = [["look", "Look"], ["words", "Business and voice"], ["photos", "Photos"], ["posting", "Accounts and posting"], ["more", "More"]];
+
 export function BrandKit({ brand }: { brand: Brand }) {
   const router = useRouter();
   const p = brand.profile;
@@ -144,6 +182,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
+  const [tab, setTab] = useState<Tab>("look");
 
   async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -172,7 +211,6 @@ export function BrandKit({ brand }: { brand: Brand }) {
     <label className="field" htmlFor={name}>{label}{hint && <span className="hint">{hint}</span>}<textarea id={name} name={name} defaultValue={value} rows={rows} /></label>
   );
   const preview: BrandProfile = { ...p, colors, fonts, look };
-  const samplePhoto = refs[0]?.url;
 
   return (
     <form className="wrap" onSubmit={save}>
@@ -182,39 +220,34 @@ export function BrandKit({ brand }: { brand: Brand }) {
       </div>
       {error && <p className="error" role="alert">{error}</p>}
 
-      <section className="card stack">
-        <h2>Logo</h2>
-        <LogoUpload colors={colors} light={logos.light} dark={logos.dark} onChange={setLogos} />
-      </section>
+      <nav className="seg kit-tabs" aria-label="Brand kit sections">
+        {TABS.map(([id, label]) => <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)}>{label}</button>)}
+      </nav>
 
-      <RefreshFromSite brand={brand} />
-
-      <UpdatePosts brand={brand} />
-
-      <SocialAccounts brand={brand} />
-
-      <section className="card stack">
-        <div><h2>Look</h2><p className="small muted">What makes this brand&rsquo;s posts its own, beyond colours and fonts. Save to apply it to every post.</p></div>
-        <LookEditor brandId={brand.id} look={look} onChange={setLook} />
-        <div className="look-previews">
-          <ScaledPost brand={preview} spec={SAMPLE} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />
-          <ScaledPost brand={preview} spec={SAMPLE_LIST} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />
-          {samplePhoto && <ScaledPost brand={preview} spec={SAMPLE_PHOTO(samplePhoto)} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />}
-        </div>
-      </section>
-
-      <section className="card kit-look">
-        <div className="stack">
-          <h2>Colours and fonts</h2>
-          <ColourPicker colors={colors} onChange={setColors} />
-          <div className="row" style={{ alignItems: "flex-end" }}>
-            <label className="field" style={{ flex: 1, minWidth: 180 }}>Headline font<span className="hint">Any Google Fonts name</span><input type="text" value={fonts.display} onChange={(e) => setFonts({ ...fonts, display: e.target.value })} /></label>
-            <label className="field" style={{ flex: 1, minWidth: 180 }}>Body font<span className="hint">Any Google Fonts name</span><input type="text" value={fonts.body} onChange={(e) => setFonts({ ...fonts, body: e.target.value })} /></label>
+      {/* Hidden tabs stay in the form, so Save always keeps every field. */}
+      <div className="stack" hidden={tab !== "look"}>
+        <section className="card stack">
+          <div><h2>Style</h2><p className="small muted">Pick the one that feels most like {brand.name}. Every post follows it; each post still varies its design and colours.</p></div>
+          <StylePicker brand={brand} profile={preview} look={look} logos={logos} onChange={setLook} />
+        </section>
+        <section className="card kit-look">
+          <div className="stack">
+            <h2>Colours and fonts</h2>
+            <ColourPicker colors={colors} onChange={setColors} />
+            <div className="row" style={{ alignItems: "flex-end" }}>
+              <label className="field" style={{ flex: 1, minWidth: 180 }}>Headline font<span className="hint">Any Google Fonts name</span><input type="text" value={fonts.display} onChange={(e) => setFonts({ ...fonts, display: e.target.value })} /></label>
+              <label className="field" style={{ flex: 1, minWidth: 180 }}>Body font<span className="hint">Any Google Fonts name</span><input type="text" value={fonts.body} onChange={(e) => setFonts({ ...fonts, body: e.target.value })} /></label>
+            </div>
           </div>
-        </div>
-        <ScaledPost brand={preview} spec={SAMPLE} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />
-      </section>
+          <ScaledPost brand={preview} spec={SAMPLE_NOTE} logoOnLight={logos.light} logoOnDark={logos.dark} animate={false} />
+        </section>
+        <section className="card stack">
+          <h2>Logo</h2>
+          <LogoUpload colors={colors} light={logos.light} dark={logos.dark} onChange={setLogos} />
+        </section>
+      </div>
 
+      <div className="stack" hidden={tab !== "words"}>
       <section className="card stack">
         <h2>About the business</h2>
         <label className="field">Name<input type="text" name="name" defaultValue={p.name} required /></label>
@@ -233,10 +266,19 @@ export function BrandKit({ brand }: { brand: Brand }) {
         {area("dont", "Never", p.voice.dont.join("\n"))}
         {area("ctas", "Calls to action", p.ctas.join("\n"), "One per line.", 3)}
         {area("hashtags", "Hashtags", p.hashtags.join("\n"), "One per line.", 3)}
-        {area("imageStyle", "Photo style", p.imageStyle, "How AI photos should look: places, people, light, mood.", 3)}
       </section>
+      </div>
 
-      <ProductPhotos brandId={brand.id} refs={refs} onChange={setRefs} />
+      <div className="stack" hidden={tab !== "photos"}>
+        <section className="card stack">
+          <h2>Photo style</h2>
+          {area("imageStyle", "How AI photos should look", p.imageStyle, "Places, people, light and mood.", 5)}
+        </section>
+        <ProductPhotos brandId={brand.id} refs={refs} onChange={setRefs} />
+      </div>
+
+      <div className="stack" hidden={tab !== "posting"}>
+      <SocialAccounts brand={brand} />
 
       <section className="card stack">
         <h2>Posting</h2>
@@ -255,6 +297,11 @@ export function BrandKit({ brand }: { brand: Brand }) {
         </label>
         <p className="small muted">Choose posting days on the calendar.</p>
       </section>
+      </div>
+
+      <div className="stack" hidden={tab !== "more"}>
+      <RefreshFromSite brand={brand} />
+      <UpdatePosts brand={brand} />
 
       <section className="card stack">
         <h2>Delete brand</h2>
@@ -264,6 +311,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
           <button className="btn btn-danger" type="button" onClick={remove}>Delete brand</button>
         </div>
       </section>
+      </div>
     </form>
   );
 }

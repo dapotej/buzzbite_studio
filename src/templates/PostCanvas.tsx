@@ -72,9 +72,14 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
   const still = animate ? "" : " bl-still";
   const lk = lookClasses(brand.look);
   // Graphic posts take their background from the brand's look; "mixed" keeps the post's own light or dark.
+  // A post's own background (spec.theme) wins when it picks the brand or an accent colour.
   const surface = brand.look?.surface ?? "mixed";
-  const bg = surface === "mixed" ? spec.theme : surface;
-  const onBg: "light" | "dark" = bg === "colour" ? (inkOn(primary, dark) === "#FFFFFF" ? "dark" : "light") : bg;
+  const own = spec.theme === "brand" ? "colour" : spec.theme;
+  const bg: "light" | "dark" | "colour" | "accent" = surface === "mixed" || own === "colour" || own === "accent" ? own : surface;
+  const bgColour = bg === "accent" ? s(0) : primary;
+  const onBg: "light" | "dark" = bg === "colour" || bg === "accent" ? (inkOn(bgColour, dark) === "#FFFFFF" ? "dark" : "light") : bg;
+  if (bg === "accent") Object.assign(vars, { "--bgc": bgColour, "--on-bgc": inkOn(bgColour, dark) });
+  const bgClass = bg === "accent" ? "bl-colour" : `bl-${bg}`;
   const wrap = (cls: string, body: ReactNode) => <div className={`bl-post ${cls} ${lk}${still}`} style={vars}>{body}</div>;
 
   switch (spec.template) {
@@ -131,7 +136,7 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
       </>);
     }
     case "statement":
-      return wrap(`bl-${bg}`, <>
+      return wrap(bgClass, <>
         <div className="bl-grid" />
         <div className="bl-body bl-between">
           <Kicker text={spec.kicker} />
@@ -140,7 +145,7 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
         {foot(onBg)}
       </>);
     case "stat":
-      return wrap(`bl-${bg}`, <>
+      return wrap(bgClass, <>
         <div className="bl-grid" />
         <div className="bl-body bl-between">
           <Kicker text={spec.kicker} />
@@ -154,7 +159,7 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
         {foot(onBg)}
       </>);
     case "list":
-      return wrap(`bl-${bg}`, <>
+      return wrap(bgClass, <>
         <div className="bl-grid" />
         <div className="bl-body">
           <Kicker text={spec.kicker} />
@@ -171,7 +176,7 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
         {foot(onBg)}
       </>);
     case "chat":
-      return wrap(`bl-${bg}`, <>
+      return wrap(bgClass, <>
         <div className="bl-grid" />
         <div className="bl-body bl-chat">
           {spec.bubbles.slice(0, 6).map((b, i) => <div key={i} className={`bl-bub ${b.fromCustomer ? "me" : "them"}`}>{b.text}</div>)}
@@ -187,6 +192,79 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
         {(spec.note || spec.sub) && <p className="bl-poster-small">{spec.note || spec.sub}</p>}
         {foot("light")}
       </>);
+    case "quote":
+      return wrap(`${bgClass} bl-quote`, <>
+        <div className="bl-grid" />
+        <div className="bl-body bl-between">
+          <Kicker text={spec.kicker} />
+          <div className="bl-stack">
+            <span className="bl-qmark" aria-hidden="true">“</span>
+            <blockquote className="bl-qtext"><Md text={spec.quote || spec.headline} /></blockquote>
+            {spec.sub && <p className="bl-qby">{spec.sub}</p>}
+          </div>
+        </div>
+        {foot(onBg)}
+      </>);
+    case "split":
+      return wrap(`${bgClass} bl-split`, <>
+        <Media spec={spec} animate={animate} className="bl-split-ph" />
+        <div className="bl-split-box">
+          <Kicker text={spec.kicker} />
+          <h1 className="bl-h bl-h-m"><Md text={spec.headline} /></h1>
+          {spec.sub && <p className="bl-sub"><Md text={spec.sub} /></p>}
+        </div>
+        {foot(onBg)}
+      </>);
+    case "versus": {
+      const cols = spec.items.slice(0, 2);
+      return wrap(`${bgClass} bl-versus`, <>
+        <div className="bl-grid" />
+        <div className="bl-body">
+          <Kicker text={spec.kicker} />
+          <h1 className="bl-h bl-h-m" style={{ marginTop: 30 }}><Md text={spec.headline} /></h1>
+          <div className="bl-vs">
+            {cols.map((c, i) => (
+              <div key={i} className={`bl-vs-col${i ? " bl-vs-b" : ""}`}>
+                <span className="bl-vs-label">{c.title}</span>
+                <p>{c.detail}</p>
+              </div>
+            ))}
+            {cols.length === 2 && <span className="bl-vs-mid" aria-hidden="true">vs</span>}
+          </div>
+        </div>
+        {foot(onBg)}
+      </>);
+    }
+    case "note":
+      return wrap(`${bgClass} bl-note`, <>
+        <div className="bl-grid" />
+        <div className="bl-note-card">
+          <div className="bl-note-bar"><span>‹ Notes</span><span>Done</span></div>
+          <h1 className="bl-note-h"><Md text={spec.headline} /></h1>
+          <ul>{spec.items.slice(0, 5).map((it, i) => <li key={i}><i aria-hidden="true" className={i === 0 ? "on" : ""} />{it.title}</li>)}</ul>
+        </div>
+        {foot(onBg)}
+      </>);
+    case "social": {
+      const logo = logoOnLight;
+      return wrap(`${bgClass} bl-social`, <>
+        <div className="bl-grid" />
+        <div className="bl-social-card">
+          <div className="bl-social-head">
+            <span className="bl-social-av">{logo ? <img src={logo} alt="" /> : brand.name.slice(0, 1)}</span>
+            <span><b>{brand.name}</b><small>@{(site.split("/")[0] || brand.name).replace(/^www\./, "").split(".")[0].toLowerCase()}</small></span>
+          </div>
+          <p className="bl-social-text"><Md text={spec.quote || spec.headline} /></p>
+          {spec.sub && <p className="bl-social-sub">{spec.sub}</p>}
+          <div className="bl-social-icons" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.6-9.5 9-9.5 9z" /></svg>
+            <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.2-4.6A8 8 0 1 1 21 12z" /></svg>
+            <svg viewBox="0 0 24 24"><path d="M4 12v7h16v-7M12 3v12M7 8l5-5 5 5" /></svg>
+          </div>
+        </div>
+        {foot(onBg)}
+      </>);
+    }
     case "carousel": {
       const slides = spec.slides.length ? spec.slides : [{ layout: "cover" as const, kicker: spec.kicker, headline: spec.headline, body: spec.sub, big: "" }];
       const i = Math.min(Math.max(0, slide), slides.length - 1);

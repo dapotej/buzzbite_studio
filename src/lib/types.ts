@@ -3,6 +3,7 @@ import { z } from "zod";
 export const TEMPLATE_IDS = [
   "photo", "photo_band", "photo_frame", "photo_stat", "video",
   "statement", "stat", "list", "chat", "poster", "motion", "carousel", "reel",
+  "quote", "split", "versus", "note", "social",
 ] as const;
 export type TemplateId = (typeof TEMPLATE_IDS)[number];
 
@@ -33,7 +34,7 @@ export const LookSchema = z.object({
   corners: opt("corners", "Corner style for tags, cards, frames and bubbles."),
   align: opt("align", "Text alignment for headlines and copy."),
   photo: opt("photo", "Colour treatment for every photo."),
-  surface: opt("surface", "Background of graphic posts (statements, lists, numbers, chats): mixed, always dark, always light, or the brand colour."),
+  surface: opt("surface", "Background of graphic posts. mixed (recommended: each post picks light, dark, brand or accent colour, for variety), or always dark, always light, or always the brand colour for a very strict brand."),
   texture: opt("texture", "Background texture on graphic posts."),
   labels: opt("labels", "Style of small labels and kickers."),
   logo: opt("logo", "Where the logo sits."),
@@ -153,19 +154,25 @@ export const TEMPLATES: Record<TemplateId, { name: string; usesPhoto: boolean; v
   motion: { name: "Animated graphic", usesPhoto: false, video: true, guide: "Animated graphic: 2-3 lines appear, then an end card. Use rarely." },
   reel: { name: "Reel", usesPhoto: false, video: true, guide: "A vertical 9:16 video of 3-4 scenes, about 5 seconds each: every scene has its own photo animated into a clip, an on-screen caption and a voice-over line, with subtitles and background music. Best for stories, behind the scenes, launches, quick tips and anything worth narrating. Fill scenes and music; headline is the reel's title shown at the start." },
   carousel: { name: "Carousel", usesPhoto: true, video: false, guide: "5-8 swipeable slides: a cover that hooks, one point per slide, then a call-to-action slide. Best for how-tos, checklists, myths vs facts, step-by-step explainers and buyer education. The cover may use a photo (imagePrompt), or leave imagePrompt empty for a graphic cover." },
+  quote: { name: "Quote", usesPhoto: false, video: false, guide: "A big pull quote with quotation marks and who said it (sub). For opinions, principles, customer words the brand has on record, or a line worth remembering." },
+  split: { name: "Split photo", usesPhoto: true, video: false, guide: "Photo on one half, a colour panel with the headline and a line on the other. For introducing a product, a place or a person with a short message." },
+  versus: { name: "Versus", usesPhoto: false, video: false, guide: "Two columns side by side: myth vs fact, before vs after, the usual way vs the brand's way (items: exactly 2). For contrasts and myth-busting." },
+  note: { name: "Note", usesPhoto: false, video: false, guide: "A phone note or to-do list on a colour background: a title (headline) and 3-5 short lines (items). For checklists, reminders, relatable to-dos and quick tips." },
+  social: { name: "Post card", usesPhoto: false, video: false, guide: "Looks like a social post from the brand (logo, name, the text in quote). For hot takes, observations and opinions written in a personal voice." },
 };
 
 /** The visual part of a post. Every template reads the fields it needs and ignores the rest. */
 export const PostSpecSchema = z.object({
   template: z.enum(TEMPLATE_IDS),
-  theme: z.enum(["light", "dark"]),
+  theme: z.enum(["light", "dark", "brand", "accent"]).describe("Background for graphic designs: light, dark, brand (the brand's main colour) or accent (a supporting colour). Vary it from post to post."),
   kicker: z.string().describe("Short label, 1-4 words."),
   headline: z.string().describe("Six words or fewer, in the brand's headline style. Where the style uses emphasis, wrap 1-3 key words in *asterisks*."),
   sub: z.string().describe("Optional line under the headline, under 12 words, or empty."),
   note: z.string().describe("photo_frame/poster: a short tag line, under 8 words, or empty."),
   big: z.string().describe("photo_stat/stat/poster: the big figure or 1-2 word title. Figures must come from the brand facts."),
   bigLabel: z.string().describe("photo_stat: 2-5 words under the figure, or empty."),
-  items: z.array(z.object({ title: z.string(), detail: z.string() })).describe("list only: 3-4 items."),
+  quote: z.string().describe("quote: the quote itself, under 25 words, from a real customer or the brand's own point of view (never invented customer quotes; use sub for who said it, e.g. 'The Buzzbite team'). social: the post text, under 35 words, written like a sharp post. Empty for other templates."),
+  items: z.array(z.object({ title: z.string(), detail: z.string() })).describe("list: 3-4 items. versus: exactly 2, title is the column label (Myth / Fact, Before / After, Usually / With us) and detail the text, under 16 words. note: 3-5 short lines in title, detail empty. Empty for other templates."),
   bubbles: z.array(z.object({ fromCustomer: z.boolean(), text: z.string() })).describe("chat only."),
   lines: z.array(z.string()).describe("video/motion: 2-3 short lines that appear one by one."),
   endline: z.string().describe("motion only: closing line on the end card."),
