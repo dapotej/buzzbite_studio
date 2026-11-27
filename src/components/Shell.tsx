@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Wordmark } from "./Logo";
 import { inkOn } from "@/templates/PostCanvas";
 import type { Brand } from "@/lib/types";
+import { getSession } from "@/lib/accounts";
+import { blockedReason } from "@/lib/limits";
 
 type Section = "calendar" | "review" | "trends" | "media" | "kit";
 
@@ -20,9 +22,14 @@ export function BrandDot({ brand }: { brand: Brand }) {
   return <span className="bdot" style={{ background: c, color: inkOn(c, "#111") }}>{brand.name.slice(0, 1).toUpperCase()}</span>;
 }
 
-export function Shell({ brand, brands, current, reviewCount, children }: {
+export async function Shell({ brand, brands, current, reviewCount, children }: {
   brand: Brand; brands: Brand[]; current: Section; reviewCount: number; children: React.ReactNode;
 }) {
+  const session = await getSession();
+  const internal = session?.workspace.plan === "internal";
+  const blocked = session ? blockedReason(session) : null;
+  const trialDays = session?.workspace.plan === "trial" && session.workspace.trial_ends_at
+    ? Math.max(0, Math.ceil((new Date(session.workspace.trial_ends_at).getTime() - Date.now()) / 86400_000)) : null;
   const links: [Section, string, string][] = [
     ["calendar", `/b/${brand.id}`, "Calendar"],
     ["review", `/b/${brand.id}/review`, "To review"],
@@ -40,7 +47,8 @@ export function Shell({ brand, brands, current, reviewCount, children }: {
             {brands.filter((b) => b.id !== brand.id).map((b) => <Link key={b.id} href={`/b/${b.id}`}><BrandDot brand={b} />{b.name}</Link>)}
             <Link href="/setup"><span className="bdot" style={{ background: "var(--sunk)" }}>+</span>Add a brand</Link>
             <div className="menu-extra">
-              <a href="/leads">Website sign-ups</a>
+              <a href="/settings">Settings</a>
+              {internal && <a href="/leads">Website sign-ups</a>}
               <a href="/logout">Sign out</a>
             </div>
           </div>
@@ -55,11 +63,19 @@ export function Shell({ brand, brands, current, reviewCount, children }: {
         </nav>
         <div className="side-foot">
           <span>Posts on {brand.settings.days.map((d) => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][d]).join(", ")} at {brand.settings.time}.</span>
-          <a href="/leads">Website sign-ups</a>
+          <a href="/settings">Settings{session ? ` · ${session.user.name || session.user.email}` : ""}</a>
+          {internal && <a href="/leads">Website sign-ups</a>}
           <a href="/logout">Sign out</a>
         </div>
       </aside>
-      <main className="main" id="main">{children}</main>
+      <main className="main" id="main">
+        {blocked ? (
+          <p className="plan-note warn" role="status">{blocked} <a href="/settings#billing">Choose a plan</a></p>
+        ) : trialDays !== null && trialDays <= 7 ? (
+          <p className="plan-note" role="status">Free trial: {trialDays} day{trialDays === 1 ? "" : "s"} left. <a href="/settings#billing">Choose a plan</a></p>
+        ) : null}
+        {children}
+      </main>
       {/* Phones: the sections as a tab bar at the bottom of the screen. */}
       <nav className="tabs" aria-label="Sections">
         {links.map(([key, href, label]) => (

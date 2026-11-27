@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { assertBrandAllowed } from "@/lib/limits";
 import { z } from "zod";
 import { draftBrandProfile } from "@/lib/ai";
 import { createBrand } from "@/lib/db";
@@ -25,6 +26,7 @@ function blankProfile(name: string, website: string): BrandProfile {
 /** Creates a brand. With enough source material, Claude drafts the profile. */
 export const POST = handle(async (req: Request) => {
   const { name, source, website } = Body.parse(await req.json());
+  await assertBrandAllowed(); // plan limit: brands
   const text = [source, website && `Website: ${website}`].filter(Boolean).join("\n\n");
   const profile = source.trim().length > 40
     ? { ...(await draftBrandProfile(name, text)), name, website: website || undefined } as BrandProfile

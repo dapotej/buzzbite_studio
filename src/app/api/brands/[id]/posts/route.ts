@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { draftOne } from "@/lib/ai";
+import { postAllowance } from "@/lib/limits";
 import { getBrand, listPostsBetween } from "@/lib/db";
 import { handle, notFound } from "@/lib/http";
 import { savePost } from "@/lib/pipeline";
@@ -23,6 +24,7 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   const formatNote = format === "photo" ? " Use a photo template." : format === "video" ? " Use the video template." : format === "carousel" ? " Use the carousel template with 5-8 slides." : format === "graphic" ? " Use a graphic template (no photo)." : "";
   const ask = (brief || "Choose the best topic for this date from the brand's pillars and the season.") + formatNote +
     (sameDay.length ? ` There is already a post that day: "${sameDay.map((p) => p.title).join('", "')}". Make this one different.` : "");
+  await postAllowance(); // plan limit: posts per month
   const draft = await draftOne(brand.profile, ask, date);
   const post = await savePost(brand, draft, date);
   return NextResponse.json({ id: post.id });

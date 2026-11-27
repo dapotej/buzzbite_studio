@@ -102,3 +102,34 @@ create table if not exists leads (
   created_at timestamptz not null default now()
 );
 create index if not exists leads_created on leads (created_at desc);
+
+-- v6: accounts and billing.
+create table if not exists users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,          -- stored lower-case
+  name text not null default '',
+  password_hash text not null,         -- scrypt: salt:hash (hex)
+  created_at timestamptz not null default now()
+);
+create table if not exists workspace_members (
+  workspace_id uuid not null references workspaces(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  role text not null default 'member', -- owner | member
+  created_at timestamptz not null default now(),
+  primary key (workspace_id, user_id)
+);
+create table if not exists invites (
+  token text primary key,
+  kind text not null,                  -- signup (a new workspace) | team (join a workspace)
+  workspace_id uuid references workspaces(id) on delete cascade,
+  email text not null default '',
+  created_by uuid references users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  used_at timestamptz
+);
+-- plan: internal | trial | starter | growth | agency; status: trialing | active | past_due | canceled
+alter table workspaces add column if not exists plan text not null default 'trial';
+alter table workspaces add column if not exists plan_status text not null default 'trialing';
+alter table workspaces add column if not exists trial_ends_at timestamptz;
+alter table workspaces add column if not exists billing jsonb not null default '{}'::jsonb;

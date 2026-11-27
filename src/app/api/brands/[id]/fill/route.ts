@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getBrand } from "@/lib/db";
 import { handle, notFound } from "@/lib/http";
+import { postAllowance } from "@/lib/limits";
 import { fillDates } from "@/lib/pipeline";
 
 // Writing a batch of posts takes a minute or two.
@@ -15,5 +16,6 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   const brand = await getBrand(id);
   if (!brand) return notFound();
   const { from, to } = Body.parse(await req.json());
-  return NextResponse.json(await fillDates(brand, from, to, 7));
+  const allowed = await postAllowance(); // plan limit: posts per month
+  return NextResponse.json(await fillDates(brand, from, to, Math.min(7, allowed)));
 });

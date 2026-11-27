@@ -41,6 +41,21 @@ connected accounts and publishes at the scheduled time (so the app needs no sche
 - **Changes:** moving a post re-books it; revising or un-approving cancels the booking; deleting cancels it.
 - **Results:** the calendar checks due posts and shows Scheduled, Posted (with links) or Failed (with Try again / Post now).
 
+## Accounts and billing
+
+- **Accounts:** email and password (scrypt hashes, signed session cookie). Each customer has a workspace; brands,
+  posts and media are only ever read through the signed-in user's workspace (`src/lib/accounts.ts`, `src/lib/db.ts`).
+- **First run:** while no accounts exist, the sign-in page asks for the old shared `APP_PASSWORD` once, so the owner
+  can create their account and keep the existing workspace. After that `APP_PASSWORD` is no longer used.
+- **Sign-up is invite-only** unless `SIGNUPS_OPEN=true`. The Buzzbite team creates early-access links in
+  Settings → Early access invites; workspace owners invite teammates in Settings → Workspace and team.
+- **Plans** (`src/lib/plans.ts`): 14-day trial, Starter, Growth, Agency, plus an unlimited internal plan. Posts and AI
+  videos per month and brands per workspace are enforced in `src/lib/limits.ts`.
+- **Payments** (`src/lib/payments.ts`), each off until its keys are set:
+  - Stripe (USD, cards): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER|GROWTH|AGENCY`;
+    webhook URL `/api/public/billing/stripe` (events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`).
+  - Paystack (NGN): `PAYSTACK_SECRET_KEY`, `PAYSTACK_PLAN_STARTER|GROWTH|AGENCY`; webhook URL `/api/public/billing/paystack`.
+
 ## Running locally
 
 ```bash

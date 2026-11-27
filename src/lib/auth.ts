@@ -1,6 +1,6 @@
-// Session cookie for the single-password v1. Runs in middleware (Edge) and on the server,
-// so it uses Web Crypto only.
-export const SESSION_COOKIE = "bl_session";
+// Session cookie: "<userId>.<expires>.<signature>". Runs in middleware (Edge) and on the
+// server, so it uses Web Crypto only. Password hashing lives in passwords.ts (Node only).
+export const SESSION_COOKIE = "bb_session";
 const MAX_AGE_DAYS = 30;
 
 async function hmac(secret: string, message: string): Promise<string> {
@@ -15,26 +15,33 @@ function secret(): string {
   return s;
 }
 
-export async function createSessionValue(): Promise<{ value: string; maxAge: number }> {
-  const expires = Date.now() + MAX_AGE_DAYS * 86400_000;
-  return { value: `${expires}.${await hmac(secret(), String(expires))}`, maxAge: MAX_AGE_DAYS * 86400 };
-}
-
-export async function isValidSession(value: string | undefined): Promise<boolean> {
-  if (!value) return false;
-  const [expires, sig] = value.split(".");
-  if (!expires || !sig || Number(expires) < Date.now()) return false;
-  const expected = await hmac(secret(), expires);
-  if (expected.length !== sig.length) return false;
+function same(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
   let diff = 0;
-  for (let i = 0; i < sig.length; i++) diff |= expected.charCodeAt(i) ^ sig.charCodeAt(i);
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
 
-export async function passwordMatches(input: string): Promise<boolean> {
+export async function createSessionValue(userId: string): Promise<{ value: string; maxAge: number }> {
+  const expires = Date.now() + MAX_AGE_DAYS * 86400_000;
+  const body = `${userId}.${expires}`;
+  return { value: `${body}.${await hmac(secret(), body)}`, maxAge: MAX_AGE_DAYS * 86400 };
+}
+
+/** The signed-in user's id, or null when the cookie is missing, expired or forged. */
+export async function sessionUserId(value: string | undefined): Promise<string | null> {
+  if (!value) return null;
+  const parts = value.split(".");
+  if (parts.length !== 3) return null;
+  const [userId, expires, sig] = parts;
+  if (!/^[0-9a-f-]{36}$/.test(userId) || !(Number(expires) > Date.now())) return null;
+  return same(await hmac(secret(), `${userId}.${expires}`), sig) ? userId : null;
+}
+
+/** The one-time owner password from the single-password version, used only to claim the first workspace. */
+export async function legacyPasswordMatches(input: string): Promise<boolean> {
   const expected = process.env.APP_PASSWORD;
-  if (!expected) return false;
-  // Compare digests so the comparison takes the same time whatever the input.
+  if (!expected || !input) return false;
   const [a, b] = await Promise.all([hmac(secret(), input), hmac(secret(), expected)]);
   return a === b;
 }

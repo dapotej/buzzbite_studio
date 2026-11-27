@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { draftOne } from "@/lib/ai";
+import { postAllowance } from "@/lib/limits";
 import { getBrand, getTrendReport, updateTrendItems } from "@/lib/db";
 import { handle, notFound } from "@/lib/http";
 import { emptyDates, savePost } from "@/lib/pipeline";
@@ -23,6 +24,7 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   const start = new Date(); start.setUTCDate(start.getUTCDate() + 1);
   const end = new Date(start); end.setUTCDate(end.getUTCDate() + 60);
   const date = chosen ?? (await emptyDates(brand, iso(start), iso(end)))[0] ?? iso(start);
+  await postAllowance(); // plan limit: posts per month
   const draft = await draftOne(brand.profile, `${item.title}. Why now: ${item.whyNow} Post idea: ${item.recommendation} Preferred format: ${item.format}.`, date);
   const post = await savePost(brand, draft, date);
   report.items[index] = { ...item, addedPostId: post.id };

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, isValidSession } from "@/lib/auth";
+import { SESSION_COOKIE, sessionUserId } from "@/lib/auth";
 
 // Earlier addresses of the app. Visitors are sent to the same page on the current one.
 const OLD_HOSTS = new Set(["getsocialpilot.vercel.app", "brandloom-six.vercel.app"]);
@@ -14,14 +14,15 @@ export async function middleware(req: NextRequest) {
     url.port = "";
     return NextResponse.redirect(url, 308);
   }
-  if (req.nextUrl.pathname === "/login" || req.nextUrl.pathname.startsWith("/api/public/")) return NextResponse.next();
-  if (await isValidSession(req.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
+  const path = req.nextUrl.pathname;
+  if (path === "/login" || path === "/signup" || path.startsWith("/api/public/")) return NextResponse.next();
+  if (await sessionUserId(req.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
   if (req.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
   const url = req.nextUrl.clone();
   url.pathname = "/login";
-  url.search = "";
+  url.search = path === "/" ? "" : `?next=${encodeURIComponent(path + req.nextUrl.search)}`;
   return NextResponse.redirect(url);
 }
 

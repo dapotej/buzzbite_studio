@@ -1,5 +1,6 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
+import { requireSession } from "./accounts";
 import { EMPTY_PUBLISHING, type Brand, type BrandProfile, type BrandSettings, type BrandSocial, type Idea, type Media, type Post, type PostSpec, type PostStatus, type Publishing, type TrendItem, type TrendReport } from "./types";
 
 function client() {
@@ -8,16 +9,9 @@ function client() {
   return neon(url);
 }
 
-// v1 is single-tenant: everything lives in one workspace. The schema is already
-// multi-tenant, so a signed-in user's workspace can replace this later.
-let workspaceId: string | null = null;
+// Every read and write is limited to the signed-in user's workspace.
 async function currentWorkspace(): Promise<string> {
-  if (workspaceId) return workspaceId;
-  const sql = client();
-  const rows = (await sql`select id from workspaces order by created_at limit 1`) as { id: string }[];
-  if (rows[0]) return (workspaceId = rows[0].id);
-  const created = (await sql`insert into workspaces (name) values ('My workspace') returning id`) as { id: string }[];
-  return (workspaceId = created[0].id);
+  return (await requireSession()).workspace.id;
 }
 
 type Row = Record<string, unknown>;
@@ -126,17 +120,17 @@ export async function deleteBrand(id: string): Promise<void> {
 
 // ---------- posts ----------
 export async function listPostsBetween(brandId: string, from: string, to: string): Promise<Post[]> {
-  return (await client()`select * from posts where brand_id = ${brandId} and publish_on between ${from} and ${to} order by publish_on, created_at`).map(toPost);
+  return (await client()`select * from posts where brand_id = ${brandId} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()}) and publish_on between ${from} and ${to} order by publish_on, created_at`).map(toPost);
 }
 export async function listPostsByStatus(brandId: string, statuses: PostStatus[]): Promise<Post[]> {
-  return (await client()`select * from posts where brand_id = ${brandId} and status = any(${statuses}) order by publish_on nulls last, created_at`).map(toPost);
+  return (await client()`select * from posts where brand_id = ${brandId} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()}) and status = any(${statuses}) order by publish_on nulls last, created_at`).map(toPost);
 }
 export async function recentPostTitles(brandId: string): Promise<string[]> {
   const rows = (await client()`select title from posts where brand_id = ${brandId} and title <> '' order by created_at desc limit 60`) as { title: string }[];
   return rows.map((r) => r.title);
 }
 export async function getPost(id: string): Promise<Post | null> {
-  const rows = await client()`select * from posts where id = ${id}`;
+  const rows = await client()`select * from posts where id = ${id} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()})`;
   return rows[0] ? toPost(rows[0]) : null;
 }
 export async function createPost(p: {
@@ -183,23 +177,23 @@ export async function setBrandSocial(id: string, social: BrandSocial): Promise<v
   await client()`update brands set social = ${JSON.stringify(social)}::jsonb where id = ${id}`;
 }
 export async function setPostsStatus(ids: string[], status: PostStatus): Promise<void> {
-  if (ids.length) await client()`update posts set status = ${status}, updated_at = now() where id = any(${ids})`;
+  if (ids.length) await client()`update posts set status = ${status}, updated_at = now() where id = any(${ids}) and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()})`;
 }
 export async function deletePost(id: string): Promise<void> {
-  await client()`delete from posts where id = ${id}`;
+  await client()`delete from posts where id = ${id} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()})`;
 }
 
 // ---------- media ----------
 export type MediaRow = Media & { fal_endpoint: string | null; fal_request_id: string | null };
 export async function listMedia(brandId: string): Promise<Media[]> {
-  return (await client()`select * from media where brand_id = ${brandId} and status <> 'failed' order by created_at desc limit 200`).map(toMedia);
+  return (await client()`select * from media where brand_id = ${brandId} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()}) and status <> 'failed' order by created_at desc limit 200`).map(toMedia);
 }
 export async function listPendingMedia(brandId: string): Promise<MediaRow[]> {
   const rows = await client()`select * from media where brand_id = ${brandId} and status = 'pending' order by created_at`;
   return rows.map((r) => ({ ...toMedia(r), fal_endpoint: (r.fal_endpoint as string) ?? null, fal_request_id: (r.fal_request_id as string) ?? null }));
 }
 export async function getMediaRow(id: string): Promise<MediaRow | null> {
-  const rows = await client()`select * from media where id = ${id}`;
+  const rows = await client()`select * from media where id = ${id} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()})`;
   if (!rows[0]) return null;
   return { ...toMedia(rows[0]), fal_endpoint: (rows[0].fal_endpoint as string) ?? null, fal_request_id: (rows[0].fal_request_id as string) ?? null };
 }
@@ -238,11 +232,11 @@ export async function insertIdea(brandId: string, i: Pick<Idea, "title" | "angle
 // ---------- trend radar ----------
 const toReport = (r: Row): TrendReport => ({ id: r.id as string, brand_id: r.brand_id as string, summary: r.summary as string, items: r.items as TrendItem[], created_at: iso(r.created_at) });
 export async function latestTrendReport(brandId: string): Promise<TrendReport | null> {
-  const rows = await client()`select * from trend_reports where brand_id = ${brandId} order by created_at desc limit 1`;
+  const rows = await client()`select * from trend_reports where brand_id = ${brandId} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()}) order by created_at desc limit 1`;
   return rows[0] ? toReport(rows[0]) : null;
 }
 export async function getTrendReport(id: string): Promise<TrendReport | null> {
-  const rows = await client()`select * from trend_reports where id = ${id}`;
+  const rows = await client()`select * from trend_reports where id = ${id} and brand_id in (select id from brands where workspace_id = ${await currentWorkspace()})`;
   return rows[0] ? toReport(rows[0]) : null;
 }
 export async function insertTrendReport(brandId: string, summary: string, items: TrendItem[]): Promise<TrendReport> {

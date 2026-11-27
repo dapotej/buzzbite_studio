@@ -2,6 +2,7 @@ import "server-only";
 import { fal } from "@fal-ai/client";
 import { put } from "@vercel/blob";
 import sharp from "sharp";
+import { assertVideoAllowed } from "./limits";
 
 // Model endpoints are settings, so a newer model can be swapped in without a code change.
 // Defaults: FLUX 3 for 4:5 photos; Kling 2.1 (standard) to animate a still into a 5-second clip.
@@ -21,7 +22,7 @@ export function describeFalError(e: unknown): string {
   if (err?.status === 403) return `fal.ai refused the request${text ? `: ${text}` : ""}. This usually means the fal.ai account has no credit left (top up at fal.ai/dashboard/billing) or the key is wrong.`;
   if (err?.status === 404) return `fal.ai does not know the model ${IMAGE_MODEL}. Set FAL_IMAGE_MODEL in Vercel.`;
   if (err?.status === 422) return `fal.ai could not use the request${text ? `: ${text}` : ""}.`;
-  if (e instanceof MediaError) return e.message;
+  if (e instanceof MediaError || (e instanceof Error && e.name === "LimitError")) return e.message;
   return `fal.ai error${err?.status ? ` ${err.status}` : ""}${text ? `: ${text}` : err?.message ? `: ${err.message}` : ""}.`;
 }
 
@@ -48,6 +49,7 @@ export async function queueReferenceImage(prompt: string, referenceUrls: string[
 
 /** Queues a 5-second clip animated from an existing image. */
 export async function queueVideo(prompt: string, imageUrl: string): Promise<{ endpoint: string; requestId: string }> {
+  await assertVideoAllowed(); // plan limit: AI videos per month
   configure();
   const res = await fal.queue.submit(VIDEO_MODEL, { input: { prompt, image_url: imageUrl, duration: "5", aspect_ratio: "9:16" } });
   return { endpoint: VIDEO_MODEL, requestId: res.request_id };

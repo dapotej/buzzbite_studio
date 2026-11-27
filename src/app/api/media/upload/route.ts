@@ -1,5 +1,6 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
+import { getBrand } from "@/lib/db";
 
 // Issues short-lived tokens so the browser can upload photos and clips straight to Vercel Blob.
 // The middleware has already checked the session cookie.
@@ -10,7 +11,8 @@ export async function POST(req: Request) {
       body,
       request: req,
       onBeforeGenerateToken: async (pathname) => {
-        if (!/^brands\/[0-9a-f-]{36}\//.test(pathname)) throw new Error("Invalid upload path.");
+        const m = /^brands\/([0-9a-f-]{36})\//.exec(pathname);
+        if (!m || !(await getBrand(m[1]))) throw new Error("Invalid upload path.");
         return {
           allowedContentTypes: ["image/png", "image/jpeg", "image/webp", "video/mp4", "video/quicktime", "video/webm", "application/pdf"],
           maximumSizeInBytes: 200 * 1024 * 1024,

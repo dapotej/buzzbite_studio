@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { getSession } from "@/lib/accounts";
 import { listLeads } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +10,8 @@ const KIND: Record<string, string> = { waitlist: "Waitlist", campaign: "Influenc
 
 /** Sign-ups from the Buzzbite website: waitlist, campaign enquiries and creators. */
 export default async function Leads() {
+  // Buzzbite's own sign-ups: only the internal workspace can see them.
+  if ((await getSession())?.workspace.plan !== "internal") notFound();
   const leads = await listLeads();
   const count = (k: string) => leads.filter((l) => l.kind === k).length;
   return (
