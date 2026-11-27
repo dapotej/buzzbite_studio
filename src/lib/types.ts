@@ -12,7 +12,7 @@ export type TemplateId = (typeof TEMPLATE_IDS)[number];
  */
 export const LOOK_OPTIONS = {
   type: { heavy: "Heavy and tight", editorial: "Editorial: lighter, more air", caps: "All caps", light: "Light and large" },
-  emphasis: { color: "Key words in colour", highlight: "Highlighter block", underline: "Thick underline", italic: "Italics", none: "No emphasis" },
+  emphasis: { classic: "Colour on dark, highlighter on light", color: "Key words in colour", highlight: "Highlighter block", underline: "Thick underline", italic: "Italics", none: "No emphasis" },
   corners: { sharp: "Square", soft: "Slightly rounded", round: "Very rounded" },
   align: { left: "Left", center: "Centred" },
   photo: { natural: "Natural", warm: "Warm film", vivid: "Vivid", mono: "Black and white", duotone: "Brand-colour duotone" },
@@ -45,7 +45,7 @@ export type Look = z.infer<typeof LookSchema>;
 
 /** The look brands had before looks existed. New brands get one chosen for them. */
 export const DEFAULT_LOOK: Look = {
-  name: "Classic bold", type: "heavy", emphasis: "highlight", corners: "soft", align: "left", photo: "natural", surface: "mixed", texture: "grid",
+  name: "Classic bold", type: "heavy", emphasis: "classic", corners: "soft", align: "left", photo: "natural", surface: "mixed", texture: "grid",
   labels: "solid", logo: "bottom", spacing: "bold", templates: [], headlines: "",
 };
 
