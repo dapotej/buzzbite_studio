@@ -42,7 +42,7 @@ export type Brand = {
 
 export const TEMPLATE_IDS = [
   "photo", "photo_band", "photo_frame", "photo_stat", "video",
-  "statement", "stat", "list", "chat", "poster", "motion",
+  "statement", "stat", "list", "chat", "poster", "motion", "carousel",
 ] as const;
 export type TemplateId = (typeof TEMPLATE_IDS)[number];
 
@@ -58,6 +58,7 @@ export const TEMPLATES: Record<TemplateId, { name: string; usesPhoto: boolean; v
   chat: { name: "Chat", usesPhoto: false, video: false, guide: "4-6 chat bubbles that dramatise the customer's problem, then a headline." },
   poster: { name: "Poster", usesPhoto: false, video: false, guide: "Huge 1-2 word title (big), bold colour shapes, a short line under it. Good for seasons and greetings." },
   motion: { name: "Animated graphic", usesPhoto: false, video: true, guide: "Animated graphic: 2-3 lines appear, then an end card. Use rarely." },
+  carousel: { name: "Carousel", usesPhoto: true, video: false, guide: "5-8 swipeable slides: a cover that hooks, one point per slide, then a call-to-action slide. Best for how-tos, checklists, myths vs facts, step-by-step explainers and buyer education. The cover may use a photo (imagePrompt), or leave imagePrompt empty for a graphic cover." },
 };
 
 /** The visual part of a post. Every template reads the fields it needs and ignores the rest. */
@@ -79,7 +80,19 @@ export const PostSpecSchema = z.object({
     .string()
     .describe("Photo templates and video: a concrete photo to generate in the brand's art direction (subject, place, light, composition). No text in the image. Empty for other templates."),
   motionPrompt: z.string().describe("video only: how the photo should move in the clip (camera, subject motion), or empty."),
+  slides: z
+    .array(
+      z.object({
+        layout: z.enum(["cover", "point", "stat", "quote", "cta"]),
+        kicker: z.string().describe("Short label, 1-4 words, or empty."),
+        headline: z.string().describe("Under 9 words. Wrap 1-3 key words in *asterisks*."),
+        body: z.string().describe("Under 30 words, or empty. cover: a one-line promise; cta: the call to action."),
+        big: z.string().describe("stat: the figure (brand facts only). point: leave empty (slides are numbered automatically)."),
+      }),
+    )
+    .describe("carousel only: 5-8 slides, first is cover, last is cta. Empty for other templates."),
 });
+export type Slide = PostSpec["slides"][number];
 export const MediaRefSchema = z.object({ id: z.string(), url: z.string(), kind: z.enum(["image", "video"]) });
 export type MediaRef = z.infer<typeof MediaRefSchema>;
 /** The spec as stored: Claude's design plus the photo and clip made for it. */

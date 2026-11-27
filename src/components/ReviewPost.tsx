@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ScaledPost } from "./PostThumb";
-import { downloadBlob, exportMp4, exportPng } from "@/lib/export";
+import { downloadBlob, exportMp4, exportPng, slidesPdf, slidesZip } from "@/lib/export";
 import { isVideoPost, type Brand, type Post } from "@/lib/types";
 
 const fmt = (s: string | null) => (s ? new Date(s + "T12:00:00Z").toLocaleDateString("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }) : "No date");
@@ -17,6 +17,8 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
   const [message, setMessage] = useState("");
   const [exporting, setExporting] = useState<number | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const [slide, setSlide] = useState(0);
+  useEffect(() => { setSlide(0); }, [post?.id]);
 
   useEffect(() => { setCaption(post?.[platform] ?? ""); }, [post, platform]);
   // While this post's photo or clip is being made, check on it.
@@ -79,6 +81,31 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
   async function copy() {
     try { await navigator.clipboard.writeText(caption); setMessage("Caption copied."); } catch { setMessage("Select the caption and copy it."); }
   }
+  /** Renders every carousel slide in turn and returns them as PNGs. */
+  async function renderSlides(): Promise<Blob[]> {
+    const count = Math.max(1, p.spec.slides.length);
+    const out: Blob[] = [];
+    for (let i = 0; i < count; i++) {
+      setSlide(i);
+      await new Promise((r) => setTimeout(r, 250));
+      const n = canvasRef.current?.firstElementChild as HTMLElement | null;
+      if (!n) throw new Error("Could not draw the slides.");
+      out.push(await exportPng(n));
+      setExporting((i + 1) / count);
+    }
+    setSlide(0);
+    return out;
+  }
+  async function downloadCarousel(kind: "zip" | "pdf") {
+    const base = `${brand.name}-${p.publish_on ?? p.id.slice(0, 8)}`.replace(/\W+/g, "-").toLowerCase();
+    setMessage(""); setExporting(0);
+    try {
+      const pngs = await renderSlides();
+      if (kind === "zip") downloadBlob(await slidesZip(pngs, base), `${base}-slides.zip`);
+      else downloadBlob(await slidesPdf(pngs), `${base}-carousel.pdf`);
+    } catch (e) { setMessage(e instanceof Error ? e.message : "Could not create the file."); }
+    finally { setExporting(null); }
+  }
   async function download() {
     const n = canvasRef.current?.firstElementChild as HTMLElement | null;
     if (!n) return;
@@ -124,7 +151,16 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
 
       <div className="review">
         <div className="stage">
-          <ScaledPost key={p.id + p.updated_at} brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} canvasRef={canvasRef} />
+          <div className="stage-col">
+            <ScaledPost key={p.id + p.updated_at} brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} canvasRef={canvasRef} slide={slide} badge={false} />
+            {p.spec.template === "carousel" && p.spec.slides.length > 1 && (
+              <div className="slides-nav">
+                <button className="btn btn-ghost" type="button" onClick={() => setSlide((s) => Math.max(0, s - 1))} disabled={slide === 0} aria-label="Previous slide">←</button>
+                <div className="dots">{p.spec.slides.map((_, i) => <button key={i} type="button" aria-label={`Slide ${i + 1}`} aria-current={i === slide} onClick={() => setSlide(i)} />)}</div>
+                <button className="btn btn-ghost" type="button" onClick={() => setSlide((s) => Math.min(p.spec.slides.length - 1, s + 1))} disabled={slide === p.spec.slides.length - 1} aria-label="Next slide">→</button>
+              </div>
+            )}
+          </div>
         </div>
         <div className="panel">
           <div className="row" style={{ justifyContent: "space-between" }}>
@@ -167,9 +203,18 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
           </form>
           {message && <p className="notice" role="status">{message}</p>}
           <div className="row" style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-            <button className="btn" type="button" onClick={download} disabled={exporting !== null || making}>
-              {exporting !== null ? `Recording ${Math.round(exporting * 100)}%` : isVideoPost(p.spec) ? "Download MP4" : "Download image"}
-            </button>
+            {p.spec.template === "carousel" ? (
+              <>
+                <button className="btn" type="button" onClick={() => downloadCarousel("zip")} disabled={exporting !== null || making}>
+                  {exporting !== null ? `Preparing ${Math.round(exporting * 100)}%` : "Slides for Instagram (ZIP)"}
+                </button>
+                <button className="btn" type="button" onClick={() => downloadCarousel("pdf")} disabled={exporting !== null || making}>PDF for LinkedIn</button>
+              </>
+            ) : (
+              <button className="btn" type="button" onClick={download} disabled={exporting !== null || making}>
+                {exporting !== null ? `Recording ${Math.round(exporting * 100)}%` : isVideoPost(p.spec) ? "Download MP4" : "Download image"}
+              </button>
+            )}
             <span className="spacer" />
             <button className="btn btn-ghost btn-danger" type="button" onClick={remove}>{busy === "confirm-delete" ? "Click again to delete" : "Delete"}</button>
           </div>

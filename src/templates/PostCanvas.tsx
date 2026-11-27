@@ -38,9 +38,11 @@ type Props = {
   logoOnDark: string | null;
   /** False for thumbnails: animations show their finished state and clips show their first frame. */
   animate?: boolean;
+  /** Carousels: which slide to show (0 = cover). */
+  slide?: number;
 };
 
-export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = true }: Props) {
+export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = true, slide = 0 }: Props) {
   const { primary, dark, light } = brand.colors;
   const sup = (brand.colors.supporting ?? []).filter((c) => /^#[0-9a-f]{6}$/i.test(c));
   const s = (i: number) => (sup.length ? sup[i % sup.length] : primary);
@@ -162,6 +164,51 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
         {(spec.note || spec.sub) && <p className="bl-poster-small">{spec.note || spec.sub}</p>}
         {foot("light")}
       </>);
+    case "carousel": {
+      const slides = spec.slides.length ? spec.slides : [{ layout: "cover" as const, kicker: spec.kicker, headline: spec.headline, body: spec.sub, big: "" }];
+      const i = Math.min(Math.max(0, slide), slides.length - 1);
+      const sl = slides[i];
+      const count = <span className="bl-count">{i + 1}/{slides.length}</span>;
+      const pointNo = slides.slice(0, i + 1).filter((x) => x.layout === "point").length;
+      if (sl.layout === "cover") {
+        const photo = !!spec.media?.url || !!spec.imagePrompt.trim();
+        return wrap(`bl-dark ${photo ? "bl-photo" : ""} bl-car`, <>
+          {photo ? <><Media spec={spec} animate={animate} /><div className="bl-shade" /></> : <div className="bl-grid" />}
+          {count}
+          {sl.kicker && <span className="bl-chip bl-chip-p">{sl.kicker}</span>}
+          <div className="bl-bottom">
+            <h1 className="bl-h bl-h-xl"><Md text={sl.headline} /></h1>
+            {sl.body && <p className="bl-sub"><Md text={sl.body} /></p>}
+            <span className="bl-swipe">Swipe <i>→</i></span>
+          </div>
+          {foot("dark")}
+        </>);
+      }
+      if (sl.layout === "cta") {
+        return wrap("bl-band bl-car bl-car-cta", <>
+          {count}
+          <div className="bl-car-mid">
+            <h1 className="bl-h bl-h-xl"><Md text={sl.headline} /></h1>
+            {sl.body && <p className="bl-car-body">{sl.body}</p>}
+          </div>
+          {foot(inkOn(primary, dark) === "#FFFFFF" ? "dark" : "light")}
+        </>);
+      }
+      const theme = i % 2 ? "light" : "dark";
+      return wrap(`bl-${theme} bl-car`, <>
+        <div className="bl-grid" />
+        {count}
+        <div className="bl-car-mid">
+          {sl.kicker && <div className="bl-kicker"><span className="dot" />{sl.kicker}</div>}
+          {sl.layout === "point" && <span className="bl-car-n" style={{ background: `var(--s${((pointNo - 1) % 4) + 1})`, color: `var(--on-s${((pointNo - 1) % 4) + 1})` }}>{pointNo}</span>}
+          {sl.layout === "stat" && sl.big && <div className="bl-big">{sl.big}</div>}
+          {sl.layout === "quote" && <span className="bl-car-q" aria-hidden="true">“</span>}
+          <h1 className={`bl-h ${sl.layout === "quote" ? "bl-h-m" : "bl-h-l"}`}><Md text={sl.headline} /></h1>
+          {sl.body && <p className="bl-car-body">{sl.body}</p>}
+        </div>
+        {foot(theme)}
+      </>);
+    }
     case "motion":
     default:
       return <Motion spec={spec} vars={vars} logo={logoOnLight} name={brand.name} animate={animate} />;

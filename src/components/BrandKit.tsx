@@ -12,7 +12,7 @@ const textToPairs = (s: string) => lines(s).map((l) => { const i = l.indexOf(":"
 
 const SAMPLE: PostSpec = {
   template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", sub: "", note: "", big: "", bigLabel: "",
-  items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", media: null, clip: null,
+  items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", slides: [], media: null, clip: null,
 };
 
 /** Logo upload with an automatic white version for dark backgrounds. */

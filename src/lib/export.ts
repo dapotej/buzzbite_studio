@@ -174,3 +174,23 @@ export function downloadBlob(blob: Blob, filename: string) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/** Instagram carousel: every slide as a PNG, in one ZIP. */
+export async function slidesZip(pngs: Blob[], base: string): Promise<Blob> {
+  const { zipSync } = await import("fflate");
+  const files: Record<string, Uint8Array> = {};
+  for (let i = 0; i < pngs.length; i++) files[`${base}-${String(i + 1).padStart(2, "0")}.png`] = new Uint8Array(await pngs[i].arrayBuffer());
+  return new Blob([zipSync(files, { level: 0 }) as Uint8Array<ArrayBuffer>], { type: "application/zip" });
+}
+
+/** LinkedIn document carousel: one 1080×1350 page per slide. */
+export async function slidesPdf(pngs: Blob[]): Promise<Blob> {
+  const { PDFDocument } = await import("pdf-lib");
+  const pdf = await PDFDocument.create();
+  for (const png of pngs) {
+    const img = await pdf.embedPng(new Uint8Array(await png.arrayBuffer()));
+    const page = pdf.addPage([POST_W, POST_H]);
+    page.drawImage(img, { x: 0, y: 0, width: POST_W, height: POST_H });
+  }
+  return new Blob([(await pdf.save()) as Uint8Array<ArrayBuffer>], { type: "application/pdf" });
+}

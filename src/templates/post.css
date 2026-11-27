@@ -101,6 +101,18 @@
 .bl-end .bl-cta { font-size: 36px; font-weight: 500; }
 .bl-end img { height: 64px; width: auto; max-width: 360px; object-fit: contain; align-self: flex-start; }
 
+/* carousel */
+.bl-count { position: absolute; right: 64px; top: 64px; z-index: 6; font-size: 24px; font-weight: 700; padding: 8px 16px; border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; font-variant-numeric: tabular-nums; }
+.bl-light .bl-count { background: color-mix(in srgb, var(--dark) 10%, transparent); color: var(--dark); }
+.bl-swipe { display: inline-flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 700; color: var(--p); }
+.bl-swipe i { font-style: normal; font-size: 40px; }
+.bl-car-mid { position: absolute; left: 64px; right: 64px; top: 50%; transform: translateY(-55%); z-index: 3; display: flex; flex-direction: column; gap: 30px; }
+.bl-car-body { margin: 0; font-size: 38px; line-height: 1.38; font-weight: 500; color: var(--muted); }
+.bl-band .bl-car-body { color: inherit; opacity: .85; }
+.bl-car-n { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--display); font-size: 64px; font-weight: 800; }
+.bl-car-q { font-family: var(--display); font-size: 220px; line-height: .6; color: var(--p); height: 100px; }
+.bl-car .bl-big { font-size: 240px; }
+
 /* thumbnails show the finished state */
 .bl-still *, .bl-still *::before, .bl-still *::after { animation-delay: -20s !important; animation-iteration-count: 1 !important; animation-play-state: paused !important; }
 .bl-still .bl-end { display: none; }

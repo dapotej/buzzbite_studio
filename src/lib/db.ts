@@ -47,6 +47,7 @@ function normalizeSpec(s: Partial<PostSpec>): PostSpec {
     template: s.template ?? "statement", theme: s.theme ?? "dark", kicker: s.kicker ?? "", headline: s.headline ?? "", sub: s.sub ?? "",
     note: s.note ?? "", big: s.big ?? "", bigLabel: s.bigLabel ?? "", items: s.items ?? [], bubbles: s.bubbles ?? [], lines: s.lines ?? [],
     endline: s.endline ?? "", cta: s.cta ?? "", imagePrompt: s.imagePrompt ?? "", motionPrompt: s.motionPrompt ?? "",
+    slides: s.slides ?? [],
     media: s.media ?? null, clip: s.clip ?? null,
   };
 }
