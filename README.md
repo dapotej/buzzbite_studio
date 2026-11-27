@@ -1,6 +1,6 @@
 # Buzzbite
 
-Your social media on autopilot, in your brand.
+Your social media on autopilot, in your brand. Live at [app.buzzbite.io](https://app.buzzbite.io).
 
 Buzzbite keeps a brand kit for each business (logo, colours, fonts, voice, audience, content themes, facts and photo style). From it, Buzzbite:
 
