@@ -95,6 +95,10 @@ export async function draftBrandProfile(name: string, source: string): Promise<B
       "You are a brand strategist setting up an automated social media system for a business. Read the source material and produce a brand profile. " +
       "Use only what the material supports; where it says nothing, make a modest, sensible choice. Facts must come from the material, never invented. " +
       "Colours must be #RRGGBB; pick 2-4 supporting colours that suit the brand. Fonts must be real Google Fonts families. " +
+      "When the material includes design signals from the brand's website, base the colours on them: primary is the most distinctive brand colour " +
+      "(usually saturated, used often, or the theme colour), dark and light are the site's darkest text/background and lightest background colours, and supporting are " +
+      "other brand colours from the list; ignore greys used only for borders. Use the site's fonts when they are Google Fonts; otherwise pick the closest Google Fonts family. " +
+      "Take the voice from how the website actually writes. " +
       "imageStyle is art direction for AI-generated photos: places, people, light and mood that suit the brand.",
     prompt: `Business name: ${name}\n\nSource material:\n<source>\n${source}\n</source>`,
     schema: BrandProfileSchema,

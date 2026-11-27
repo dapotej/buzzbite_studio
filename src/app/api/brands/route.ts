@@ -4,6 +4,7 @@ import { z } from "zod";
 import { draftBrandProfile } from "@/lib/ai";
 import { createBrand } from "@/lib/db";
 import { handle } from "@/lib/http";
+import { SiteError, describeSite, readWebsite, type SiteImport } from "@/lib/siteImport";
 import type { BrandProfile } from "@/lib/types";
 
 export const maxDuration = 120;
@@ -27,11 +28,18 @@ function blankProfile(name: string, website: string): BrandProfile {
 export const POST = handle(async (req: Request) => {
   const { name, source, website } = Body.parse(await req.json());
   await assertBrandAllowed(); // plan limit: brands
-  const text = [source, website && `Website: ${website}`].filter(Boolean).join("\n\n");
-  const profile = source.trim().length > 40
+  // Read the website first: its words, colours, fonts and logo make setup much faster.
+  let site: SiteImport | null = null;
+  let siteNote = "";
+  if (website) {
+    try { site = await readWebsite(website); }
+    catch (e) { siteNote = e instanceof SiteError ? e.message : "We couldn't read the website."; }
+  }
+  const text = [source, site ? describeSite(site) : website && `Website: ${website}`].filter(Boolean).join("\n\n");
+  const profile = text.trim().length > 120
     ? { ...(await draftBrandProfile(name, text)), name, website: website || undefined } as BrandProfile
     : blankProfile(name, website);
   if (!profile.website) profile.website = website;
-  const brand = await createBrand(profile);
-  return NextResponse.json({ id: brand.id });
+  const brand = await createBrand(profile, site?.logo ?? undefined);
+  return NextResponse.json({ id: brand.id, site: site ? { pages: site.pages.length, logo: !!site.logo, fonts: site.fonts, url: site.url } : null, siteNote });
 });
