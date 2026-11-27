@@ -3,10 +3,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { EditText } from "./EditText";
+import { ReelPlayer } from "./ReelPlayer";
+import { exportReel } from "@/lib/reel";
 import { ScaledPost } from "./PostThumb";
 import { downloadBlob, exportMp4, exportPng, slidesPdf, slidesZip } from "@/lib/export";
 import { filesReady, makePostFiles } from "@/lib/deliver";
-import { PLATFORM_NAMES, PLATFORMS, isVideoPost, type Brand, type Platform, type Post, type PostSpec } from "@/lib/types";
+import { PLATFORM_NAMES, PLATFORMS, isVideoPost, type Brand, type Platform, type Post, type PostSpec, isReel, reelReady } from "@/lib/types";
 
 const fmt = (s: string | null) => (s ? new Date(s + "T12:00:00Z").toLocaleDateString("en-GB", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }) : "No date");
 
@@ -185,9 +187,21 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
     finally { setExporting(null); }
   }
   async function download() {
+    const base = `${brand.name}-${p.publish_on ?? p.id.slice(0, 8)}`.replace(/\W+/g, "-").toLowerCase();
+    if (isReel(p.spec)) {
+      if (!reelReady(p.spec)) return setMessage("The reel is still being made.");
+      setMessage(""); setExporting(0);
+      try {
+        const { blob, audio } = await exportReel({ spec: p.spec, brand: brand.profile, logo: brand.logo_on_dark ?? brand.logo_on_light }, setExporting);
+        downloadBlob(blob, `${base}-reel.mp4`);
+        if (audio !== "aac") setMessage("This browser recorded the sound in a format Instagram may not accept. For posting, download from Chrome or Safari.");
+      }
+      catch (e) { setMessage(e instanceof Error ? e.message : "Could not create the reel."); }
+      finally { setExporting(null); }
+      return;
+    }
     const n = canvasRef.current?.firstElementChild as HTMLElement | null;
     if (!n) return;
-    const base = `${brand.name}-${p.publish_on ?? p.id.slice(0, 8)}`.replace(/\W+/g, "-").toLowerCase();
     setMessage("");
     try {
       if (isVideoPost(p.spec)) {
@@ -246,7 +260,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
             if (id) go(id);
           }}>
           <div className="stage-col">
-            <ScaledPost key={p.id + p.updated_at} brand={brand.profile} spec={preview ?? p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} canvasRef={canvasRef} slide={slide} badge={false} />
+            {isReel(p.spec) ? <ReelPlayer spec={preview ?? p.spec} brand={brand.profile} logo={brand.logo_on_dark ?? brand.logo_on_light} /> : <ScaledPost key={p.id + p.updated_at} brand={brand.profile} spec={preview ?? p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} canvasRef={canvasRef} slide={slide} badge={false} />}
             {p.spec.template === "carousel" && p.spec.slides.length > 1 && (
               <div className="slides-nav">
                 <button className="btn btn-ghost" type="button" onClick={() => setSlide((s) => Math.max(0, s - 1))} disabled={slide === 0} aria-label="Previous slide">←</button>
@@ -287,7 +301,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
           <PublishPanel brand={brand} post={p} connected={connected} busy={busy} prep={prep} onToggle={toggleTarget} onPublish={publish} onUnapprove={unapprove} />
           <div className="quick">
             <button type="button" aria-pressed={editing} disabled={busy !== null || making} onClick={() => { setEditing(!editing); setPreview(null); }}>{editing ? "Close text editor" : "Edit text"}</button>
-            {[["new_photo", "New photo"], ["make_video", "Make it a video"], ["make_carousel", "Make it a carousel"], ["shorter", "Shorter caption"], ["different_design", "Different design"]].filter(([a]) => !(a === "make_carousel" && p.spec.template === "carousel") && !(a === "make_video" && isVideoPost(p.spec))).map(([a, label]) => (
+            {[["new_photo", "New photo"], ["make_video", "Make it a video"], ["make_carousel", "Make it a carousel"], ["make_reel", "Make it a reel"], ["shorter", "Shorter caption"], ["different_design", "Different design"]].filter(([a]) => !(a === "make_carousel" && p.spec.template === "carousel") && !(a === "make_video" && isVideoPost(p.spec)) && !(a === "make_reel" && p.spec.template === "reel")).map(([a, label]) => (
               <button key={a} type="button" disabled={busy !== null || making} onClick={() => revise({ action: a }, a)}>{busy === a ? "Working…" : label}</button>
             ))}
           </div>

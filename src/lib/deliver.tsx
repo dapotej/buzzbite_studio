@@ -3,6 +3,7 @@ import { upload } from "@vercel/blob/client";
 import { createRoot } from "react-dom/client";
 import { PostCanvas, POST_W } from "@/templates/PostCanvas";
 import { ensureFonts, exportMp4, exportPng, slidesPdf } from "./export";
+import { exportReel } from "./reel";
 import { designKey, isVideoPost, type Brand, type Post, type PublishFile } from "./types";
 
 const plain = (s: string) => s.replace(/\*/g, "").trim();
@@ -38,7 +39,13 @@ export async function makePostFiles(brand: Brand, post: Post, onProgress: (fract
 
   try {
     let files: Record<"instagram" | "linkedin", PublishFile[]>;
-    if (isVideoPost(post.spec)) {
+    if (post.spec.template === "reel") {
+      // Vertical 9:16 with voice-over and music: Instagram posts it as a Reel.
+      const { blob, audio } = await exportReel({ spec: post.spec, brand: brand.profile, logo: brand.logo_on_dark ?? brand.logo_on_light }, (f) => onProgress(f * 0.85));
+      if (audio !== "aac") throw new Error("This browser can't record reel sound in the format Instagram needs. Approve this reel from Chrome or Safari.");
+      const url = await put(blob, "reel.mp4");
+      files = { instagram: [{ url, type: "video" }], linkedin: [{ url, type: "video" }] };
+    } else if (isVideoPost(post.spec)) {
       const { blob } = await exportMp4(await draw(0), (f) => onProgress(f * 0.85));
       const url = await put(blob, "post.mp4");
       files = { instagram: [{ url, type: "video" }], linkedin: [{ url, type: "video" }] };

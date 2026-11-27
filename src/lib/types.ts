@@ -29,7 +29,16 @@ export type BrandProfile = z.infer<typeof BrandProfileSchema>;
 /** The posting plan: which weekdays to post on (0 = Monday) and at what time. */
 /** A photo of the brand's real product, copied by the image model whenever a post shows the product. */
 export type ProductReference = { url: string; note: string };
-export type BrandSettings = { days: number[]; time: string; /** IANA time zone posts go out in. */ tz: string; references: ProductReference[] };
+export type BrandSettings = { days: number[]; time: string; /** IANA time zone posts go out in. */ tz: string; references: ProductReference[]; /** Narrator for reels. */ voice: string };
+
+/** Narrator voices for reels (ElevenLabs voices on fal.ai). */
+export const VOICES: { id: string; label: string }[] = [
+  { id: "Rachel", label: "Rachel: calm, warm (female)" }, { id: "Aria", label: "Aria: expressive (female)" },
+  { id: "Sarah", label: "Sarah: soft, confident (female)" }, { id: "Charlotte", label: "Charlotte: seductive, smooth (female)" },
+  { id: "Jessica", label: "Jessica: young, upbeat (female)" }, { id: "Roger", label: "Roger: confident (male)" },
+  { id: "George", label: "George: warm, British (male)" }, { id: "Brian", label: "Brian: deep (male)" },
+  { id: "Chris", label: "Chris: casual (male)" }, { id: "Will", label: "Will: friendly (male)" },
+];
 
 export const PLATFORMS = ["instagram", "linkedin"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -79,7 +88,7 @@ export type Brand = {
 
 export const TEMPLATE_IDS = [
   "photo", "photo_band", "photo_frame", "photo_stat", "video",
-  "statement", "stat", "list", "chat", "poster", "motion", "carousel",
+  "statement", "stat", "list", "chat", "poster", "motion", "carousel", "reel",
 ] as const;
 export type TemplateId = (typeof TEMPLATE_IDS)[number];
 
@@ -95,6 +104,7 @@ export const TEMPLATES: Record<TemplateId, { name: string; usesPhoto: boolean; v
   chat: { name: "Chat", usesPhoto: false, video: false, guide: "4-6 chat bubbles that dramatise the customer's problem, then a headline." },
   poster: { name: "Poster", usesPhoto: false, video: false, guide: "Huge 1-2 word title (big), bold colour shapes, a short line under it. Good for seasons and greetings." },
   motion: { name: "Animated graphic", usesPhoto: false, video: true, guide: "Animated graphic: 2-3 lines appear, then an end card. Use rarely." },
+  reel: { name: "Reel", usesPhoto: false, video: true, guide: "A vertical 9:16 video of 3-4 scenes, about 5 seconds each: every scene has its own photo animated into a clip, an on-screen caption and a voice-over line, with subtitles and background music. Best for stories, behind the scenes, launches, quick tips and anything worth narrating. Fill scenes and music; headline is the reel's title shown at the start." },
   carousel: { name: "Carousel", usesPhoto: true, video: false, guide: "5-8 swipeable slides: a cover that hooks, one point per slide, then a call-to-action slide. Best for how-tos, checklists, myths vs facts, step-by-step explainers and buyer education. The cover may use a photo (imagePrompt), or leave imagePrompt empty for a graphic cover." },
 };
 
@@ -129,14 +139,32 @@ export const PostSpecSchema = z.object({
       }),
     )
     .describe("carousel only: 5-8 slides, first is cover, last is cta. Empty for other templates."),
+  scenes: z
+    .array(
+      z.object({
+        imagePrompt: z.string().describe("A vertical 9:16 photo for this scene in the brand's art direction: subject, place, light, composition. No text."),
+        motionPrompt: z.string().describe("How the photo moves in this scene's clip: camera or subject motion."),
+        caption: z.string().describe("Optional on-screen text for this scene, under 6 words, or empty."),
+        voiceover: z.string().describe("The narration for this scene: 6-14 words, about 4 seconds spoken, in the brand's voice."),
+      }),
+    )
+    .describe("reel only: 3-4 scenes in order; the voice-over lines read as one script with a hook first and a call to action last. Empty for other templates."),
+  music: z.string().describe("reel only: background music in a few words: genre, mood, tempo, instrumental. Empty for other templates."),
 });
 export type Slide = PostSpec["slides"][number];
 export const MediaRefSchema = z.object({ id: z.string(), url: z.string(), kind: z.enum(["image", "video"]) });
 export type MediaRef = z.infer<typeof MediaRefSchema>;
 /** The spec as stored: Claude's design plus the photo and clip made for it. */
+/** The finished files for a reel: per scene a photo, its clip and its voice-over, plus the music. */
+export const ReelAssetsSchema = z.object({
+  scenes: z.array(z.object({ image: z.string().nullable(), clip: z.string().nullable(), voice: z.string().nullable() })),
+  music: z.string().nullable(),
+});
+export type ReelAssets = z.infer<typeof ReelAssetsSchema>;
 export const StoredPostSpecSchema = PostSpecSchema.extend({
   media: MediaRefSchema.nullable().optional(),
   clip: MediaRefSchema.nullable().optional(),
+  reel: ReelAssetsSchema.nullable().optional(),
 });
 export type PostSpec = z.infer<typeof StoredPostSpecSchema>;
 
@@ -160,14 +188,18 @@ export type Post = {
 };
 
 /** True when the post exports as an MP4. */
-export const isVideoPost = (spec: PostSpec) => spec.template === "motion" || spec.template === "video";
+export const isVideoPost = (spec: PostSpec) => spec.template === "motion" || spec.template === "video" || spec.template === "reel";
+export const isReel = (spec: PostSpec) => spec.template === "reel";
+/** A reel is ready to play once every scene has its clip and voice-over. Music is optional. */
+export const reelReady = (spec: PostSpec) => isReel(spec) && !!spec.reel && spec.reel.scenes.length > 0 && spec.reel.scenes.every((x) => x.clip && x.voice);
 
 export type Media = {
   id: string;
   brand_id: string;
   post_id: string | null;
-  role: "image" | "video" | null;
-  kind: "image" | "video";
+  /** image | video for a post's photo and clip; for reels, "scene:<n>:image|video|voice" and "music". */
+  role: string | null;
+  kind: "image" | "video" | "audio";
   status: "ready" | "pending" | "failed";
   source: "upload" | "ai";
   url: string | null;

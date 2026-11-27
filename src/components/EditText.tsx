@@ -12,7 +12,7 @@ const USES: Record<TemplateId, TextKey[]> = {
   photo: ["kicker", "headline", "sub"], photo_band: ["kicker", "headline", "sub"], photo_frame: ["kicker", "headline", "note"],
   photo_stat: ["kicker", "big", "bigLabel", "headline"], video: ["kicker", "headline"], statement: ["kicker", "headline", "sub"],
   stat: ["kicker", "big", "headline", "sub"], list: ["kicker", "headline"], chat: ["kicker", "headline"], poster: ["big", "headline", "note"],
-  motion: ["kicker", "endline", "cta"], carousel: [],
+  motion: ["kicker", "endline", "cta"], carousel: [], reel: ["kicker", "headline"],
 };
 
 /** Edits the words on a post's design. Changes preview live; Save stores them. */

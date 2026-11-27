@@ -19,7 +19,8 @@ export async function usageFor(workspaceId: string): Promise<Usage> {
   const since = monthStart();
   const [p, v, b] = await Promise.all([
     client()`select count(*)::int as n from posts where created_at >= ${since} and brand_id in (select id from brands where workspace_id = ${workspaceId})`,
-    client()`select count(*)::int as n from media where kind = 'video' and source = 'ai' and created_at >= ${since} and brand_id in (select id from brands where workspace_id = ${workspaceId})`,
+    // A reel's scene clips count as one video: count posts with AI video, plus loose clips.
+    client()`select count(distinct coalesce(post_id::text, id::text))::int as n from media where kind = 'video' and source = 'ai' and created_at >= ${since} and brand_id in (select id from brands where workspace_id = ${workspaceId})`,
     client()`select count(*)::int as n from brands where workspace_id = ${workspaceId}`,
   ]);
   return { posts: Number((p[0] as { n: number }).n), videos: Number((v[0] as { n: number }).n), brands: Number((b[0] as { n: number }).n) };
@@ -50,8 +51,14 @@ export async function postAllowance(): Promise<number> {
   return left;
 }
 
-export async function assertVideoAllowed(): Promise<void> {
+export async function assertVideoAllowed(postId?: string): Promise<void> {
   const s = await requireSession();
+  // More clips for a post that already has one this month (a reel's scenes) don't count again.
+  if (postId) {
+    const since = monthStart();
+    const has = await client()`select 1 from media where post_id = ${postId} and kind = 'video' and source = 'ai' and created_at >= ${since} limit 1`;
+    if (has.length) return;
+  }
   const blocked = blockedReason(s);
   if (blocked) throw new LimitError(blocked);
   const plan = PLANS[s.workspace.plan];

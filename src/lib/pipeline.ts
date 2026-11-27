@@ -4,6 +4,7 @@ import {
   createPost, finishMedia, getPost, insertMedia, latestTrendReport, listPendingMedia, listPostsBetween, recentPostTitles, updatePost,
 } from "./db";
 import { checkJob, describeFalError, queueImage, queueReferenceImage, queueVideo } from "./media";
+import { advanceReelMedia, startReelMedia } from "./reels";
 import { TEMPLATES, type Brand, type Post, type PostSpec } from "./types";
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -50,25 +51,34 @@ export async function savePost(brand: Brand, draft: PostDraft, date: string | nu
   return startMedia(brand, post);
 }
 
-/** Queues the photo a post needs. Posts that need no photo go straight to review. */
-export async function startMedia(brand: Brand, post: Post): Promise<Post> {
+/** Queues a photo in the brand's art direction, drawn from the product reference photos when it shows the product. */
+export async function queuePhoto(brand: Brand, imagePrompt: string, showsProduct: boolean, aspect: "4:5" | "9:16") {
+  const style = brand.profile.imageStyle || "natural, modern, premium photography";
+  const refs = brand.settings.references;
+  const frame = aspect === "9:16" ? "Vertical 9:16 frame for a phone screen, with calm space at the bottom for subtitles." : "Portrait 4:5 frame with calm space for a headline.";
+  if (showsProduct && refs.length) {
+    return queueReferenceImage(
+      `Create a new photograph: ${imagePrompt.trim()}\n\n` +
+      `The attached photo${refs.length > 1 ? "s show" : " shows"} the brand's real product. Draw the product exactly as it appears there: same shape, size, number, position and orientation. ` +
+      `Copy only the product; the scene, place, people and light come from the description above.\n` +
+      refs.map((r, i) => (r.note.trim() ? `Reference ${i + 1}: ${r.note.trim()}\n` : "")).join("") +
+      `Art direction: ${style}\nNo readable text, letters, logos or brand names anywhere in the image. ${frame}`,
+      refs.map((r) => r.url),
+      aspect,
+    );
+  }
+  return queueImage(`${imagePrompt.trim()} Art direction: ${style}. ${frame} No text, letters, logos or signage.`, aspect);
+}
+
+/** Queues the photo a post needs (or a reel's scenes). Posts that need no photo go straight to review. */
+export async function startMedia(brand: Brand, post: Post, previous?: PostSpec): Promise<Post> {
+  if (post.spec.template === "reel") return startReelMedia(brand, post, previous);
   const t = TEMPLATES[post.spec.template];
   if (!t?.usesPhoto || post.spec.media || !post.spec.imagePrompt.trim()) {
     return (await updatePost(post.id, { status: "review", issue: null }))!;
   }
   try {
-    const style = brand.profile.imageStyle || "natural, modern, premium photography";
-    const refs = brand.settings.references;
-    const job = post.spec.showsProduct && refs.length
-      ? await queueReferenceImage(
-          `Create a new photograph: ${post.spec.imagePrompt.trim()}\n\n` +
-          `The attached photo${refs.length > 1 ? "s show" : " shows"} the brand's real product. Draw the product exactly as it appears there: same shape, size, number, position and orientation. ` +
-          `Copy only the product; the scene, place, people and light come from the description above.\n` +
-          refs.map((r, i) => (r.note.trim() ? `Reference ${i + 1}: ${r.note.trim()}\n` : "")).join("") +
-          `Art direction: ${style}\nNo readable text, letters, logos or brand names anywhere in the image. Portrait 4:5 frame with calm space for a headline.`,
-          refs.map((r) => r.url),
-        )
-      : await queueImage(`${post.spec.imagePrompt.trim()} Art direction: ${style}. No text, letters, logos or signage.`);
+    const job = await queuePhoto(brand, post.spec.imagePrompt, post.spec.showsProduct, "4:5");
     await insertMedia({
       brand_id: brand.id, post_id: post.id, role: "image", kind: "image", status: "pending", source: "ai", url: null,
       description: post.spec.imagePrompt.slice(0, 300), fal_endpoint: job.endpoint, fal_request_id: job.requestId,
@@ -87,13 +97,17 @@ export async function advance(brand: Brand): Promise<{ pending: number }> {
   let still = 0;
   for (const m of pending) {
     if (!m.fal_endpoint || !m.fal_request_id) continue;
-    const out = await checkJob(m.fal_endpoint, m.fal_request_id, m.kind, brand.id).catch((e) => ({ state: "failed" as const, error: String(e) }));
+    const out = await checkJob(m.fal_endpoint, m.fal_request_id, m.kind, brand.id, { vertical: m.role?.startsWith("scene:") ?? false }).catch((e) => ({ state: "failed" as const, error: String(e) }));
     if (out.state === "pending") { still++; continue; }
     if (out.state === "failed") await finishMedia(m.id, { status: "failed", error: out.error });
     else await finishMedia(m.id, { status: "ready", url: out.url });
     if (!m.post_id) continue;
     const post = await getPost(m.post_id);
     if (!post) continue;
+    if (m.role?.startsWith("scene:") || m.role === "music") {
+      await advanceReelMedia(brand, post, m.role, out);
+      continue;
+    }
 
     if (m.role === "image") {
       if (out.state === "failed") {
@@ -130,6 +144,7 @@ export async function advance(brand: Brand): Promise<{ pending: number }> {
 
 /** Tries again to make the photo, or the video clip, a post is missing. */
 export async function retryMedia(brand: Brand, post: Post): Promise<Post> {
+  if (post.spec.template === "reel") return startReelMedia(brand, post, post.spec);
   if (post.spec.template === "video" && post.spec.media?.url && !post.spec.clip) {
     try {
       const job = await queueVideo(post.spec.motionPrompt || "Slow, subtle camera push-in with natural movement in the scene.", post.spec.media.url);

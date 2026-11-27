@@ -14,9 +14,10 @@ const QUICK: Record<string, string> = {
   new_photo: "Use a different photo: write a fresh imagePrompt for a new scene that fits the post, and set newPhoto true.",
   shorter: "Make both captions about half as long. Keep the hook and the call to action.",
   different_design: "Redesign this post with a different template that suits the message. Keep the message the same.",
+  make_reel: "Turn this into a reel (template reel): 3-4 scenes, each with a vertical imagePrompt, a motionPrompt, a short on-screen caption and a voice-over line (6-14 words), reading as one script with a hook first and a call to action last; plus a music brief. Keep the topic and the headline as the reel's title.",
   make_carousel: "Turn this into a carousel (template carousel) of 5-8 slides: a cover, the key points expanded one per slide, and a closing cta slide. Keep the topic. If the post has a photo, keep it for the cover and set newPhoto false.",
 };
-const Body = z.object({ instruction: z.string().trim().max(1000).optional(), action: z.enum(["new_photo", "shorter", "different_design", "make_video", "make_carousel"]).optional() });
+const Body = z.object({ instruction: z.string().trim().max(1000).optional(), action: z.enum(["new_photo", "shorter", "different_design", "make_video", "make_carousel", "make_reel"]).optional() });
 
 export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
@@ -54,8 +55,9 @@ export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: str
   const keepMedia = !r.newPhoto && TEMPLATES[r.spec.template].usesPhoto;
   const updated = await updatePost(id, {
     title: r.title, pillar: r.pillar, linkedin: r.linkedin, instagram: r.instagram,
-    spec: { ...r.spec, media: keepMedia ? post.spec.media : null, clip: keepMedia && r.spec.template === "video" ? post.spec.clip : null },
+    spec: { ...r.spec, media: keepMedia ? post.spec.media : null, clip: keepMedia && r.spec.template === "video" ? post.spec.clip : null, reel: r.spec.template === "reel" ? post.spec.reel ?? null : null },
   });
   // A new photo (or a photo design that has none yet) starts generating now.
-  return NextResponse.json(await startMedia(brand, updated!));
+  // A revised reel keeps the scenes, voices and music that didn't change.
+  return NextResponse.json(await startMedia(brand, updated!, post.spec.template === "reel" ? post.spec : undefined));
 });

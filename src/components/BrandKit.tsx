@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { logoToDataUrl, whiteVersion } from "./logo";
 import { ScaledPost } from "./PostThumb";
-import { PLATFORM_NAMES, PLATFORMS, type Brand, type BrandProfile, type Platform, type PostSpec, type ProductReference, type SocialAccount } from "@/lib/types";
+import { PLATFORM_NAMES, PLATFORMS, type Brand, type BrandProfile, type Platform, type PostSpec, type ProductReference, type SocialAccount, VOICES } from "@/lib/types";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const lines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -13,7 +13,7 @@ const textToPairs = (s: string) => lines(s).map((l) => { const i = l.indexOf(":"
 
 const SAMPLE: PostSpec = {
   template: "statement", theme: "dark", kicker: "Preview", headline: "Your brand, *on autopilot.*", sub: "", note: "", big: "", bigLabel: "",
-  items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", showsProduct: false, slides: [], media: null, clip: null,
+  items: [], bubbles: [], lines: [], endline: "", cta: "", imagePrompt: "", motionPrompt: "", showsProduct: false, slides: [], scenes: [], music: "", media: null, clip: null,
 };
 
 /** Logo upload with an automatic white version for dark backgrounds. */
@@ -84,6 +84,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
   const [time, setTime] = useState(brand.settings.time);
   const [tz, setTz] = useState(brand.settings.tz);
   const [refs, setRefs] = useState<ProductReference[]>(brand.settings.references);
+  const [voice, setVoice] = useState(brand.settings.voice);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState("");
@@ -102,7 +103,7 @@ export function BrandKit({ brand }: { brand: Brand }) {
     };
     setState("saving"); setError("");
     const res = await fetch(`/api/brands/${brand.id}`, { method: "PATCH", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ profile, settings: { ...brand.settings, time, tz, references: refs }, logo_on_light: logos.light, logo_on_dark: logos.dark }) });
+      body: JSON.stringify({ profile, settings: { ...brand.settings, time, tz, references: refs, voice }, logo_on_light: logos.light, logo_on_dark: logos.dark }) });
     if (!res.ok) { setState("idle"); return setError((await res.json().catch(() => ({}))).error ?? "Could not save."); }
     setState("saved"); router.refresh(); setTimeout(() => setState("idle"), 2000);
   }
@@ -180,6 +181,11 @@ export function BrandKit({ brand }: { brand: Brand }) {
             </select>
           </label>
         </div>
+        <label className="field" style={{ maxWidth: 360 }}>Reel narrator<span className="hint">The voice that reads your reels&rsquo; voice-overs.</span>
+          <select value={voice} onChange={(e) => setVoice(e.target.value)}>
+            {[...new Set([voice, ...VOICES.map((v) => v.id)])].map((id) => <option key={id} value={id}>{VOICES.find((v) => v.id === id)?.label ?? id}</option>)}
+          </select>
+        </label>
         <p className="small muted">Choose posting days on the calendar.</p>
       </section>
 

@@ -10,7 +10,8 @@ const Settings = z.object({ days: z.array(z.number().int().min(0).max(6)).min(1)
   references: z.array(z.object({
     url: z.url().refine((u) => new URL(u).hostname.endsWith(".public.blob.vercel-storage.com"), "Not a Buzzbite upload."),
     note: z.string().max(600),
-  })).max(4).default([]) });
+  })).max(4).default([]),
+  voice: z.string().max(40).default("Rachel") });
 const Body = z.object({ profile: BrandProfileSchema.optional(), settings: Settings.optional(), logo_on_light: DataUrl.optional(), logo_on_dark: DataUrl.optional() });
 
 export const GET = handle(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {

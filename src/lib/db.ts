@@ -28,7 +28,7 @@ function toBrand(r: Row): Brand {
     id: r.id as string,
     name: r.name as string,
     profile: normalizeProfile(r.profile as BrandProfile),
-    settings: { days: Array.isArray(s.days) && s.days.length ? s.days : [0, 2, 4], time: s.time || "10:00", tz: s.tz || "Africa/Lagos", references: Array.isArray(s.references) ? s.references : [] },
+    settings: { days: Array.isArray(s.days) && s.days.length ? s.days : [0, 2, 4], time: s.time || "10:00", tz: s.tz || "Africa/Lagos", references: Array.isArray(s.references) ? s.references : [], voice: s.voice || "Rachel" },
     logo_on_light: (r.logo_on_light as string) ?? null,
     logo_on_dark: (r.logo_on_dark as string) ?? null,
     social: { profileId: null, accounts: [], ...((r.social ?? {}) as Partial<BrandSocial>) },
@@ -42,7 +42,7 @@ function normalizeSpec(s: Partial<PostSpec>): PostSpec {
     template: s.template ?? "statement", theme: s.theme ?? "dark", kicker: s.kicker ?? "", headline: s.headline ?? "", sub: s.sub ?? "",
     note: s.note ?? "", big: s.big ?? "", bigLabel: s.bigLabel ?? "", items: s.items ?? [], bubbles: s.bubbles ?? [], lines: s.lines ?? [],
     endline: s.endline ?? "", cta: s.cta ?? "", imagePrompt: s.imagePrompt ?? "", motionPrompt: s.motionPrompt ?? "", showsProduct: s.showsProduct ?? false,
-    slides: s.slides ?? [],
+    slides: s.slides ?? [], scenes: s.scenes ?? [], music: s.music ?? "", reel: s.reel ?? null,
     media: s.media ?? null, clip: s.clip ?? null,
   };
 }
@@ -255,4 +255,7 @@ export async function insertLead(l: Omit<Lead, "id" | "created_at">): Promise<vo
 }
 export async function listLeads(): Promise<Lead[]> {
   return (await client()`select * from leads order by created_at desc limit 500`).map((r) => ({ ...(r as Lead), created_at: iso(r.created_at) }));
+}
+export async function countPendingMedia(postId: string): Promise<number> {
+  return Number(((await client()`select count(*)::int as n from media where post_id = ${postId} and status = 'pending'`)[0] as { n: number }).n);
 }

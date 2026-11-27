@@ -75,6 +75,18 @@ export function PostCanvas({ brand, spec, logoOnLight, logoOnDark, animate = tru
         <div className="bl-bottom"><h1 className="bl-h bl-h-xl"><Md text={spec.headline} /></h1>{spec.sub && <p className="bl-sub"><Md text={spec.sub} /></p>}</div>
         {foot("dark")}
       </>);
+    case "reel": {
+      // The 4:5 cover for thumbnails: the first scene's photo with the reel's title. The reel itself plays in ReelPlayer.
+      const first = spec.reel?.scenes[0]?.image;
+      const cover: PostSpec = { ...spec, media: first ? { id: "reel-cover", url: first, kind: "image" } : null, clip: null };
+      return wrap("bl-dark bl-photo", <>
+        <Media spec={cover} animate={false} />
+        <div className="bl-shade" />
+        {spec.kicker && <span className="bl-chip bl-chip-p">{spec.kicker}</span>}
+        <div className="bl-bottom"><h1 className="bl-h bl-h-xl"><Md text={spec.headline} /></h1></div>
+        {foot("dark")}
+      </>);
+    }
     case "photo_band":
       return wrap("bl-band", <>
         <Media spec={spec} animate={animate} className="bl-band-ph" />

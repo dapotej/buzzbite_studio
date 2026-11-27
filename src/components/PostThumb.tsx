@@ -28,7 +28,7 @@ export function ScaledPost(props: {
   }, []);
   return (
     <div className="thumb" ref={box} style={{ aspectRatio: "4 / 5" }}>
-      {props.badge !== false && isVideoPost(props.spec) && <span className="vbadge">Video</span>}
+      {props.badge !== false && isVideoPost(props.spec) && <span className="vbadge">{props.spec.template === "reel" ? "Reel" : "Video"}</span>}
       {props.badge !== false && props.spec.template === "carousel" && <span className="vbadge vbadge-slides">{props.spec.slides.length || 1} slides</span>}
       <div className="scaler" style={{ transform: `scale(${scale})`, visibility: scale ? "visible" : "hidden" }} ref={props.canvasRef} key={props.replayKey}>
         <PostCanvas brand={props.brand} spec={props.spec} logoOnLight={props.logoOnLight} logoOnDark={props.logoOnDark} animate={props.animate} slide={props.slide} />

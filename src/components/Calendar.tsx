@@ -38,7 +38,7 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
   const polling = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const [brief, setBrief] = useState("");
-  const [format, setFormat] = useState<"any" | "photo" | "video" | "carousel" | "graphic">("any");
+  const [format, setFormat] = useState<"any" | "photo" | "video" | "reel" | "carousel" | "graphic">("any");
   // Dragging a post to another day: moved dates show immediately, then save.
   const [moved, setMoved] = useState<Record<string, string>>({});
   const [dragging, setDragging] = useState<string | null>(null);
@@ -323,7 +323,7 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
             <div className="stack" style={{ gap: 6 }}>
               <span className="small" style={{ fontWeight: 600 }}>Type of post</span>
               <div className="seg" role="group" aria-label="Type of post">
-                {([["any", "Let Buzzbite choose"], ["photo", "Photo"], ["video", "Video"], ["carousel", "Carousel"], ["graphic", "Graphic"]] as const).map(([k, l]) => (
+                {([["any", "Let Buzzbite choose"], ["photo", "Photo"], ["video", "Video"], ["reel", "Reel"], ["carousel", "Carousel"], ["graphic", "Graphic"]] as const).map(([k, l]) => (
                   <button key={k} type="button" aria-pressed={format === k} onClick={() => setFormat(k)}>{l}</button>
                 ))}
               </div>

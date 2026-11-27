@@ -56,6 +56,17 @@ connected accounts and publishes at the scheduled time (so the app needs no sche
     webhook URL `/api/public/billing/stripe` (events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`).
   - Paystack (NGN): `PAYSTACK_SECRET_KEY`, `PAYSTACK_PLAN_STARTER|GROWTH|AGENCY`; webhook URL `/api/public/billing/paystack`.
 
+## Reels
+
+A reel is a vertical 9:16 video of 3-4 scenes. Claude writes each scene's photo prompt, motion, on-screen caption and
+voice-over line, plus a music brief. The pipeline (`src/lib/reels.ts`) makes, per scene, a vertical photo, a clip
+animated from it and a voice-over, plus one instrumental music bed: models `FAL_VOICE_MODEL`
+(default `fal-ai/elevenlabs/tts/eleven-v3`, narrator chosen in the Brand kit) and `FAL_MUSIC_MODEL`
+(default `fal-ai/elevenlabs/music`). The browser (`src/lib/reel.ts`) draws every frame on a canvas (title, captions,
+word-by-word subtitles, logo, end card), mixes the voices over ducked music, and records an H.264 MP4 with AAC sound.
+The same drawing powers the preview in the review screen, the download and auto-posting. A reel counts as one video
+towards plan limits.
+
 ## Running locally
 
 ```bash
