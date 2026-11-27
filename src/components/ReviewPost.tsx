@@ -193,7 +193,7 @@ export function ReviewPost({ brand, post, strip, reviewCount }: { brand: Brand; 
             <button className="btn btn-lg" type="button" onClick={() => go(nextInQueue()?.id)} disabled={!nextInQueue()}>Next post</button>
           </div>
           <div className="quick">
-            {[["new_photo", "New photo"], ["make_video", "Make it a video"], ["shorter", "Shorter caption"], ["different_design", "Different design"]].map(([a, label]) => (
+            {[["new_photo", "New photo"], ["make_video", "Make it a video"], ["make_carousel", "Make it a carousel"], ["shorter", "Shorter caption"], ["different_design", "Different design"]].filter(([a]) => !(a === "make_carousel" && p.spec.template === "carousel") && !(a === "make_video" && isVideoPost(p.spec))).map(([a, label]) => (
               <button key={a} type="button" disabled={busy !== null || making} onClick={() => revise({ action: a }, a)}>{busy === a ? "Working…" : label}</button>
             ))}
           </div>

@@ -13,8 +13,9 @@ const QUICK: Record<string, string> = {
   new_photo: "Use a different photo: write a fresh imagePrompt for a new scene that fits the post, and set newPhoto true.",
   shorter: "Make both captions about half as long. Keep the hook and the call to action.",
   different_design: "Redesign this post with a different template that suits the message. Keep the message the same.",
+  make_carousel: "Turn this into a carousel (template carousel) of 5-8 slides: a cover, the key points expanded one per slide, and a closing cta slide. Keep the topic. If the post has a photo, keep it for the cover and set newPhoto false.",
 };
-const Body = z.object({ instruction: z.string().trim().max(1000).optional(), action: z.enum(["new_photo", "shorter", "different_design", "make_video"]).optional() });
+const Body = z.object({ instruction: z.string().trim().max(1000).optional(), action: z.enum(["new_photo", "shorter", "different_design", "make_video", "make_carousel"]).optional() });
 
 export const POST = handle(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const { id } = await ctx.params;
