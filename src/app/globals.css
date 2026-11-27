@@ -409,3 +409,20 @@ table.leads th { font-size: 12px; text-transform: uppercase; letter-spacing: .04
 .style-card.on { border-color: var(--accent); background: var(--accent-soft); }
 .fine-tune summary { cursor: pointer; font-weight: 600; color: var(--muted); }
 [hidden] { display: none !important; }
+
+/* Phones: moving posts in the agenda */
+.agenda-row { display: flex; align-items: center; gap: 6px; }
+.agenda-row .agenda-post { flex: 1; min-width: 0; }
+.agenda-row.is-dragging { opacity: .35; }
+.agenda-handle { flex: none; width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); display: grid; place-items: center; touch-action: none; cursor: grab; }
+.agenda-handle svg { width: 22px; height: 22px; fill: currentColor; }
+.agenda-handle:active { background: var(--sunk); }
+.agenda-day.drop { border-color: var(--accent); background: var(--accent-soft); }
+.drag-ghost { position: fixed; z-index: 80; transform: translate(-50%, -120%); max-width: 70vw; padding: 10px 14px; border-radius: 12px; background: var(--ink); color: var(--bg); font-weight: 600; font-size: 14px; box-shadow: 0 12px 30px rgba(0,0,0,.3); pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.move-sheet ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.move-sheet li button { width: 100%; min-height: 52px; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.move-sheet li { min-width: 0; }
+.move-sheet li button b { flex: none; }
+.move-sheet li button span { flex: 1; min-width: 0; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.move-sheet { min-width: 0; overflow: hidden; }
+@media (max-width: 700px) { .dialog-back:has(.move-sheet) { align-items: flex-end; padding: 0; } .move-sheet { width: 100%; border-radius: 20px 20px 0 0; } }

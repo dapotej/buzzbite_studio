@@ -46,14 +46,64 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
   const posts = useMemo(() => serverPosts.map((p) => (moved[p.id] ? { ...p, publish_on: moved[p.id] } : p)), [serverPosts, moved]);
   useEffect(() => { setMoved({}); }, [serverPosts]);
 
+  /** Moves a post to a day. If that day has exactly one other post that can move, the two swap days. */
   async function moveTo(postId: string, date: string) {
     const p = posts.find((x) => x.id === postId);
     if (!p || p.publish_on === date) return;
-    setMoved((m) => ({ ...m, [postId]: date }));
-    const res = await fetch(`/api/posts/${postId}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ publish_on: date }) });
-    if (!res.ok) { setMoved((m) => { const n = { ...m }; delete n[postId]; return n; }); setError("Could not move the post. Try again."); return; }
-    setToast(`Moved to ${fmt(date, { weekday: "short", day: "numeric", month: "short" })}.`);
+    const there = posts.filter((x) => x.publish_on === date && x.id !== postId);
+    const swap = p.publish_on && there.length === 1 && there[0].status !== "posted" ? there[0] : null;
+    const plan: [string, string][] = [[postId, date], ...(swap ? [[swap.id, p.publish_on!] as [string, string]] : [])];
+    setMoved((m) => ({ ...m, ...Object.fromEntries(plan) }));
+    const results = await Promise.all(plan.map(([id, d]) =>
+      fetch(`/api/posts/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ publish_on: d }) }).then((r) => r.ok).catch(() => false)));
+    if (results.some((ok) => !ok)) { setMoved({}); setError("Could not move the post. Try again."); router.refresh(); return; }
+    const day = (d: string) => fmt(d, { weekday: "short", day: "numeric", month: "short" });
+    setToast(swap ? `Swapped: this post is now on ${day(date)}, "${swap.title || "the other post"}" on ${day(p.publish_on!)}.` : `Moved to ${day(date)}.`);
     router.refresh();
+  }
+
+  // Phones: drag a post by its handle with a finger, or tap the handle to pick a day.
+  const [touch, setTouch] = useState<{ id: string; title: string; x: number; y: number; startX: number; startY: number; moving: boolean } | null>(null);
+  const [moveSheet, setMoveSheet] = useState<string | null>(null);
+  const scrollDir = useRef(0);
+  const lastPoint = useRef<[number, number]>([0, 0]);
+  const dayAt = (x: number, y: number) => (document.elementFromPoint(x, y)?.closest("[data-date]") as HTMLElement | null)?.dataset.date ?? null;
+  useEffect(() => {
+    if (!touch?.moving) return;
+    let raf = 0;
+    const tick = () => {
+      if (scrollDir.current) {
+        window.scrollBy(0, scrollDir.current * 14);
+        // The list moves under a still finger: keep the highlighted day in step.
+        const d = dayAt(...lastPoint.current);
+        setOverDay(d && d >= today ? d : null);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [touch?.moving]);
+  function handleDown(e: React.PointerEvent<HTMLButtonElement>, p: Post) {
+    if (p.status === "posted") return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setTouch({ id: p.id, title: p.title || p.spec.headline.replace(/\*/g, ""), x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moving: false });
+  }
+  function handleMove(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!touch) return;
+    const moving = touch.moving || Math.hypot(e.clientX - touch.startX, e.clientY - touch.startY) > 8;
+    setTouch({ ...touch, x: e.clientX, y: e.clientY, moving });
+    if (!moving) return;
+    lastPoint.current = [e.clientX, e.clientY];
+    scrollDir.current = e.clientY < 110 ? -1 : e.clientY > window.innerHeight - 140 ? 1 : 0;
+    const d = dayAt(e.clientX, e.clientY);
+    setOverDay(d && d >= today ? d : null);
+  }
+  function handleUp() {
+    if (!touch) return;
+    scrollDir.current = 0;
+    if (!touch.moving) setMoveSheet(touch.id);
+    else if (overDay && overDay >= today) void moveTo(touch.id, overDay);
+    setTouch(null); setOverDay(null);
   }
 
   async function createFromIdea(idea: CalendarIdea, date: string) {
@@ -233,14 +283,23 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
         {agendaDays.map((date) => {
           const dayPosts = byDay.get(date) ?? [];
           return (
-            <li key={date} className={`agenda-day ${date === today ? "today" : ""}`}>
+            <li key={date} data-date={date} className={`agenda-day ${date === today ? "today" : ""} ${touch?.moving && overDay === date ? "drop" : ""}`}>
               <div className="agenda-date"><strong>{fmt(date, { weekday: "short" })}</strong><span>{fmt(date, { day: "numeric", month: "short" })}</span></div>
               <div className="agenda-posts">
                 {dayPosts.map((p) => (
-                  <Link key={p.id} href={`/b/${brand.id}/review?post=${p.id}`} className="agenda-post">
-                    <span className="agenda-thumb"><ScaledPost brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} animate={false} badge={false} /></span>
-                    <span className="agenda-text"><strong>{p.title || p.spec.headline.replace(/\*/g, "")}</strong><span className={`chip ${chipFor(p)[0]}`}>{chipFor(p)[1]}</span></span>
-                  </Link>
+                  <div key={p.id} className={`agenda-row ${touch?.moving && touch.id === p.id ? "is-dragging" : ""}`}>
+                    <Link href={`/b/${brand.id}/review?post=${p.id}`} className="agenda-post">
+                      <span className="agenda-thumb"><ScaledPost brand={brand.profile} spec={p.spec} logoOnLight={brand.logo_on_light} logoOnDark={brand.logo_on_dark} animate={false} badge={false} /></span>
+                      <span className="agenda-text"><strong>{p.title || p.spec.headline.replace(/\*/g, "")}</strong><span className={`chip ${chipFor(p)[0]}`}>{chipFor(p)[1]}</span></span>
+                    </Link>
+                    {p.status !== "posted" && (
+                      <button type="button" className="agenda-handle" aria-label={`Move "${p.title || "post"}" to another day`}
+                        onPointerDown={(e) => handleDown(e, p)} onPointerMove={handleMove} onPointerUp={handleUp} onPointerCancel={() => { scrollDir.current = 0; setTouch(null); setOverDay(null); }}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setMoveSheet(p.id); } }}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6" /><circle cx="15" cy="6" r="1.6" /><circle cx="9" cy="12" r="1.6" /><circle cx="15" cy="12" r="1.6" /><circle cx="9" cy="18" r="1.6" /><circle cx="15" cy="18" r="1.6" /></svg>
+                      </button>
+                    )}
+                  </div>
                 ))}
                 {date >= today && (
                   <button type="button" className={dayPosts.length ? "agenda-add" : "agenda-slot"} onClick={() => setPick(date)} disabled={busy !== null}>
@@ -336,6 +395,37 @@ export function Calendar({ brand, posts: serverPosts, ideas, today, view, monthS
           </form>
         </div>
       )}
+      {touch?.moving && (
+        <div className="drag-ghost" style={{ left: touch.x, top: touch.y }} aria-hidden="true">{touch.title}</div>
+      )}
+      {moveSheet && (() => {
+        const p = posts.find((x) => x.id === moveSheet);
+        if (!p) return null;
+        const options = agendaDays.filter((d) => d >= today && d !== p.publish_on);
+        return (
+          <div className="dialog-back" onClick={(e) => { if (e.target === e.currentTarget) setMoveSheet(null); }}>
+            <div className="dialog card stack move-sheet" role="dialog" aria-modal="true" aria-labelledby="move-title">
+              <h2 id="move-title">Move &ldquo;{p.title || "this post"}&rdquo;</h2>
+              <p className="small muted">Pick a day. If a post is already there, the two swap.</p>
+              <ul>
+                {options.map((d) => {
+                  const there = byDay.get(d) ?? [];
+                  return (
+                    <li key={d}>
+                      <button type="button" onClick={() => { setMoveSheet(null); void moveTo(p.id, d); }}>
+                        <b>{fmt(d, { weekday: "short", day: "numeric", month: "short" })}</b>
+                        <span className="small muted">{there.length ? (there.length === 1 ? `Swap with "${there[0].title}"` : `${there.length} posts`) : "Free"}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+                {options.length === 0 && <li className="small muted">No other posting days left this month.</li>}
+              </ul>
+              <button type="button" className="btn" onClick={() => setMoveSheet(null)}>Cancel</button>
+            </div>
+          </div>
+        );
+      })()}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
