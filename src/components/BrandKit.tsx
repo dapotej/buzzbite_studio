@@ -127,6 +127,8 @@ export function BrandKit({ brand }: { brand: Brand }) {
         <LogoUpload colors={colors} light={logos.light} dark={logos.dark} onChange={setLogos} />
       </section>
 
+      <UpdatePosts brand={brand} />
+
       <SocialAccounts brand={brand} />
 
       <section className="card kit-look">
@@ -257,6 +259,51 @@ function SocialAccounts({ brand }: { brand: Brand }) {
       )}
       {note && <p className="notice" role="status">{note}</p>}
       {error && <p className="error" role="alert">{error}</p>}
+    </section>
+  );
+}
+
+const REWRITE = "Rewrite this post so it follows the current brand profile exactly: its voice, offerings, facts, content themes and the do and don't lists. "
+  + "Remove or replace any claim that the facts do not support. Keep the publish date, and keep the topic if it still fits the brand; otherwise choose a better topic for the date. "
+  + "If the image shows the brand's product, write a new imagePrompt that follows the art direction word for word and set newPhoto true; otherwise keep the photo.";
+
+/** Rewrites every upcoming post against the current brand kit, one at a time. */
+function UpdatePosts({ brand }: { brand: Brand }) {
+  const router = useRouter();
+  const [state, setState] = useState<{ done: number; total: number; failed: string[] } | null>(null);
+  const [running, setRunning] = useState(false);
+  async function run() {
+    const list = await fetch(`/api/brands/${brand.id}/upcoming`).then((r) => r.json()).catch(() => ({ posts: [] }));
+    const posts: { id: string; title: string; publish_on: string | null; status: string }[] = list.posts ?? [];
+    if (!posts.length) return setState({ done: 0, total: 0, failed: [] });
+    const approved = posts.filter((p) => p.status === "approved").length;
+    if (!window.confirm(`Rewrite ${posts.length} upcoming post${posts.length === 1 ? "" : "s"} to match this brand kit?${approved ? `\n\n${approved} approved post${approved === 1 ? "" : "s"} will go back to review (and any scheduled ones are cancelled) so you can check them.` : ""}\n\nSome posts get new photos. Keep this page open; it takes about half a minute a post.`)) return;
+    setRunning(true);
+    const failed: string[] = [];
+    for (let i = 0; i < posts.length; i++) {
+      setState({ done: i, total: posts.length, failed });
+      const res = await fetch(`/api/posts/${posts[i].id}/revise`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ instruction: REWRITE }) }).catch(() => null);
+      if (!res?.ok) failed.push(posts[i].title || posts[i].publish_on || "A post");
+    }
+    setState({ done: posts.length, total: posts.length, failed });
+    setRunning(false);
+    router.refresh();
+  }
+  return (
+    <section className="card stack">
+      <h2>Update upcoming posts</h2>
+      <p className="small muted">Changed the brand kit? Rewrite every post that hasn&rsquo;t gone out yet so it matches. Save your changes first. Rewritten posts come back for review.</p>
+      <div className="row">
+        <button className="btn" type="button" onClick={run} disabled={running}>
+          {running && state ? `Rewriting ${state.done + 1} of ${state.total}…` : "Update upcoming posts"}
+        </button>
+      </div>
+      {state && !running && (
+        <p className="notice" role="status">
+          {state.total === 0 ? "No upcoming posts to update." : `Rewrote ${state.total - state.failed.length} of ${state.total} posts. New photos appear in a minute or two.`}
+          {state.failed.length > 0 && ` Could not rewrite: ${state.failed.join(", ")}. Try again.`}
+        </p>
+      )}
     </section>
   );
 }
