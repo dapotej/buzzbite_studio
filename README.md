@@ -56,6 +56,28 @@ connected accounts and publishes at the scheduled time (so the app needs no sche
     webhook URL `/api/public/billing/stripe` (events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`).
   - Paystack (NGN): `PAYSTACK_SECRET_KEY`, `PAYSTACK_PLAN_STARTER|GROWTH|AGENCY`; webhook URL `/api/public/billing/paystack`.
 
+## Reliability, alerts and costs
+
+- **No tab needed:** in production, fal.ai calls `/api/public/fal` when a photo, clip or sound finishes, so posts move to
+  review on their own. Zernio calls `/api/public/zernio` (signed with a secret derived from `AUTH_SECRET`) when a post is
+  published or fails; connect it once from System health. A daily Vercel cron (`/api/public/cron`, needs `CRON_SECRET`)
+  picks up anything a webhook missed and gives up on jobs that never finished (`src/lib/system.ts`).
+- **Alerts** (`src/lib/alerts.ts`): failed photos and videos, scheduling problems and failed posts appear on the calendar
+  until fixed; failed posts are also emailed to the workspace when `RESEND_API_KEY` is set.
+- **Costs** (`src/lib/usage.ts`): every Claude response records its tokens at list price; every finished fal.ai job
+  records an estimated price per model. System health (internal only) shows this month's cost per workspace against its
+  plan price, and the most expensive posts.
+
+## Security
+
+- Sign-in is rate limited (8 failed tries per account or 30 per address in 15 minutes); so are reset requests and
+  website forms (`src/lib/security.ts`).
+- Password reset: `/forgot` emails a one-time link valid for 2 hours (only its hash is stored). Without email set up,
+  the workspace owner makes a reset link for a teammate in Settings → Team.
+- Changing or resetting a password, or "Sign out other devices", ends every other session (a session version in the
+  cookie). Changing the sign-in email needs the current password.
+- Security headers (HSTS, no framing, nosniff, referrer and permissions policies) are set in `next.config.ts`.
+
 ## Reels
 
 A reel is a vertical 9:16 video of 3-4 scenes. Claude writes each scene's photo prompt, motion, on-screen caption and
@@ -76,7 +98,7 @@ npm run db:migrate           # creates the tables (safe to re-run)
 npm run dev
 ```
 
-Environment variables: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PASSWORD`, `AUTH_SECRET`, `BLOB_READ_WRITE_TOKEN`, `FAL_KEY`, and `ZERNIO_API_KEY` for auto-posting, and optionally `FAL_REFERENCE_MODEL` (default `openai/gpt-image-2/edit`, used for photos that show the brand's product) (see `.env.example`).
+Environment variables: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PASSWORD`, `AUTH_SECRET`, `BLOB_READ_WRITE_TOKEN`, `FAL_KEY`, `ZERNIO_API_KEY` for auto-posting, `CRON_SECRET` for the daily check, `RESEND_API_KEY` for email, and optionally `FAL_REFERENCE_MODEL` (default `openai/gpt-image-2/edit`, used for photos that show the brand's product) (see `.env.example`).
 
 ## Roadmap to a product
 

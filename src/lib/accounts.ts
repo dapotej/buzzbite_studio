@@ -3,7 +3,7 @@ import { neon } from "@neondatabase/serverless";
 import { cookies } from "next/headers";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { cache } from "react";
-import { SESSION_COOKIE, sessionUserId } from "./auth";
+import { SESSION_COOKIE, readSession } from "./auth";
 import { PLANS, TRIAL_DAYS, type Plan, type PlanId, type PlanStatus } from "./plans";
 
 function client() {
@@ -44,9 +44,19 @@ export async function findUserByEmail(email: string): Promise<(User & { password
   const rows = await client()`select * from users where email = ${email.trim().toLowerCase()}`;
   return rows[0] ? { ...toUser(rows[0]), password_hash: rows[0].password_hash as string } : null;
 }
-export async function getUser(id: string): Promise<(User & { password_hash: string }) | null> {
+export async function getUser(id: string): Promise<(User & { password_hash: string; session_version: number }) | null> {
   const rows = await client()`select * from users where id = ${id}`;
-  return rows[0] ? { ...toUser(rows[0]), password_hash: rows[0].password_hash as string } : null;
+  return rows[0] ? { ...toUser(rows[0]), password_hash: rows[0].password_hash as string, session_version: Number(rows[0].session_version ?? 0) } : null;
+}
+/** Sets a new password and ends every session the user has. Returns the new session version. */
+export async function setPassword(id: string, passwordHash: string): Promise<number> {
+  const rows = await client()`update users set password_hash = ${passwordHash}, session_version = session_version + 1 where id = ${id} returning session_version`;
+  return Number((rows[0] as { session_version: number }).session_version);
+}
+/** Ends every session the user has (sign out everywhere). Returns the new session version. */
+export async function endAllSessions(id: string): Promise<number> {
+  const rows = await client()`update users set session_version = session_version + 1 where id = ${id} returning session_version`;
+  return Number((rows[0] as { session_version: number }).session_version);
 }
 export async function createUser(email: string, name: string, passwordHash: string): Promise<User> {
   const rows = await client()`insert into users (email, name, password_hash) values (${email.trim().toLowerCase()}, ${name.trim()}, ${passwordHash}) returning *`;
@@ -135,15 +145,16 @@ export type Session = { user: User; workspace: Workspace; role: "owner" | "membe
 
 /** The signed-in user and their workspace, or null. Memoised per request. */
 export const getSession = cache(async (): Promise<Session | null> => {
-  const userId = await sessionUserId((await cookies()).get(SESSION_COOKIE)?.value);
-  if (!userId) return null;
+  const cookie = await readSession((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!cookie) return null;
+  const userId = cookie.userId;
   const user = await getUser(userId);
-  if (!user) return null;
+  if (!user || user.session_version !== cookie.version) return null;
   const m = await membershipOf(userId);
   if (!m) return null;
   const workspace = await getWorkspace(m.workspace_id);
   if (!workspace) return null;
-  const { password_hash: _drop, ...plain } = user;
+  const { password_hash: _drop, session_version: _v, ...plain } = user;
   return { user: plain, workspace, role: m.role, plan: PLANS[workspace.plan] ?? PLANS.trial };
 });
 

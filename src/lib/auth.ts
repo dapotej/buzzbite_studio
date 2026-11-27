@@ -30,20 +30,31 @@ function same(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export async function createSessionValue(userId: string): Promise<{ value: string; maxAge: number }> {
+// Cookie: "<userId>.<version>.<expires>.<signature>". The version is the user's session
+// version: changing a password (or "sign out everywhere") bumps it, which ends every other session.
+// Cookies from before versions existed have three parts and count as version 0.
+export async function createSessionValue(userId: string, version = 0): Promise<{ value: string; maxAge: number }> {
   const expires = Date.now() + MAX_AGE_DAYS * 86400_000;
-  const body = `${userId}.${expires}`;
+  const body = `${userId}.${version}.${expires}`;
   return { value: `${body}.${await hmac(secret(), body)}`, maxAge: MAX_AGE_DAYS * 86400 };
 }
 
-/** The signed-in user's id, or null when the cookie is missing, expired or forged. */
-export async function sessionUserId(value: string | undefined): Promise<string | null> {
+/** The signed-in user's id and session version, or null when the cookie is missing, expired or forged. */
+export async function readSession(value: string | undefined): Promise<{ userId: string; version: number } | null> {
   if (!value) return null;
   const parts = value.split(".");
-  if (parts.length !== 3) return null;
-  const [userId, expires, sig] = parts;
-  if (!/^[0-9a-f-]{36}$/.test(userId) || !(Number(expires) > Date.now())) return null;
-  return same(await hmac(secret(), `${userId}.${expires}`), sig) ? userId : null;
+  if (parts.length !== 3 && parts.length !== 4) return null;
+  const [userId, ...rest] = parts;
+  const sig = rest.pop()!;
+  const expires = rest.pop()!;
+  const version = rest.length ? Number(rest[0]) : 0;
+  if (!/^[0-9a-f-]{36}$/.test(userId) || !(Number(expires) > Date.now()) || !Number.isInteger(version) || version < 0) return null;
+  return same(await hmac(secret(), parts.slice(0, -1).join(".")), sig) ? { userId, version } : null;
+}
+
+/** The signed-in user's id, or null. Used by the middleware, which cannot reach the database. */
+export async function sessionUserId(value: string | undefined): Promise<string | null> {
+  return (await readSession(value))?.userId ?? null;
 }
 
 /** The one-time owner password from the single-password version, used only to claim the first workspace. */

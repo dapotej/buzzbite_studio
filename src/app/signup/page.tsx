@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Wordmark } from "@/components/Logo";
 import { addMember, createUser, createWorkspace, findUserByEmail, getInvite, getWorkspace, useInvite, type Invite } from "@/lib/accounts";
-import { SESSION_COOKIE, createSessionValue } from "@/lib/auth";
+import { startSession } from "@/lib/security";
 import { PASSWORD_RULE, hashPassword, passwordOk, verifyPassword } from "@/lib/passwords";
 
 export const dynamic = "force-dynamic";
@@ -45,8 +44,7 @@ async function signUp(formData: FormData) {
     await addMember(ws.id, userId, "owner");
   }
   if (invite) await useInvite(invite.token);
-  const { value, maxAge } = await createSessionValue(userId);
-  (await cookies()).set(SESSION_COOKIE, value, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge, path: "/" });
+  await startSession(userId);
   redirect("/");
 }
 

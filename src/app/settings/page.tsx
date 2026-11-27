@@ -5,13 +5,14 @@ import { revalidatePath } from "next/cache";
 import { Wordmark } from "@/components/Logo";
 import { BillingPlans, CopyLink } from "@/components/Billing";
 import {
-  createInvite, findUserByEmail, getSession, getUser, listMembers, listOpenInvites, removeMember, renameWorkspace,
-  requireSession, revokeInvite, signupInviteFor, updateUser,
+  createInvite, endAllSessions, findUserByEmail, getSession, getUser, listMembers, listOpenInvites, removeMember, renameWorkspace,
+  requireSession, revokeInvite, setPassword, signupInviteFor, updateUser,
 } from "@/lib/accounts";
 import { blockedReason, usageFor } from "@/lib/limits";
 import { PASSWORD_RULE, hashPassword, newToken, passwordOk, verifyPassword } from "@/lib/passwords";
 import { PAID_PLANS, PLANS, isUnlimited } from "@/lib/plans";
 import { paystackConfirm, paystackReady, stripeReady } from "@/lib/payments";
+import { RESET_LINK_HOURS, createResetToken, startSession } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Settings · Buzzbite" };
@@ -26,6 +27,11 @@ async function saveAccount(formData: FormData) {
   if (!/^\S+@\S+\.\S+$/.test(email)) back("msg=bad-email#account");
   const other = await findUserByEmail(email);
   if (other && other.id !== s.user.id) back("msg=email-taken#account");
+  // Changing the sign-in email needs the password, so a borrowed session can't take the account.
+  if (email !== s.user.email) {
+    const me = await getUser(s.user.id);
+    if (!me || !(await verifyPassword(String(formData.get("current") ?? ""), me.password_hash))) back("msg=email-password#account");
+  }
   await updateUser(s.user.id, { name, email });
   back("msg=saved#account");
 }
@@ -37,8 +43,29 @@ async function changePassword(formData: FormData) {
   const next = String(formData.get("next") ?? "");
   if (!me || !(await verifyPassword(String(formData.get("current") ?? ""), me.password_hash))) back("msg=wrong-password#account");
   if (!passwordOk(next)) back("msg=short#account");
-  await updateUser(s.user.id, { password_hash: await hashPassword(next) });
+  // A new password signs out every other device; this one stays signed in.
+  await setPassword(s.user.id, await hashPassword(next));
+  await startSession(s.user.id);
   back("msg=password#account");
+}
+
+async function signOutEverywhere() {
+  "use server";
+  const s = await requireSession();
+  await endAllSessions(s.user.id);
+  await startSession(s.user.id);
+  back("msg=signed-out#account");
+}
+
+/** Owner: a one-time link for a teammate who has forgotten their password. */
+async function resetLink(formData: FormData) {
+  "use server";
+  const s = await requireSession();
+  if (s.role !== "owner") back("msg=owner-only#team");
+  const member = (await listMembers(s.workspace.id)).find((m) => m.id === String(formData.get("user")) && m.role !== "owner");
+  if (!member) back("msg=owner-only#team");
+  const token = await createResetToken(member!.id);
+  back(`reset=${token}&for=${encodeURIComponent(member!.email)}#team`);
 }
 
 async function saveWorkspace(formData: FormData) {
@@ -89,11 +116,13 @@ async function earlyAccess(formData: FormData) {
 const MSG: Record<string, [string, boolean]> = {
   saved: ["Saved.", true], password: ["Password changed.", true], "bad-email": ["Enter a valid email address.", false],
   "email-taken": ["Another account uses that email.", false], "wrong-password": ["Your current password isn't right.", false],
-  short: [`Choose a longer password. ${PASSWORD_RULE}`, false], "owner-only": ["Only the workspace owner can do that.", false],
+  short: [`Choose a longer password. ${PASSWORD_RULE}`, false],
+  "email-password": ["Enter your current password to change your email.", false],
+  "signed-out": ["Signed out of every other device.", true], "owner-only": ["Only the workspace owner can do that.", false],
 };
 
 export default async function Settings({ searchParams }: {
-  searchParams: Promise<{ msg?: string; invite?: string; signup?: string; for?: string; billing?: string; reference?: string }>;
+  searchParams: Promise<{ msg?: string; invite?: string; reset?: string; signup?: string; for?: string; billing?: string; reference?: string }>;
 }) {
   const q = await searchParams;
   let s = await getSession();
@@ -134,6 +163,7 @@ export default async function Settings({ searchParams }: {
             <label className="field" style={{ flex: "1 1 220px" }}>Name<input name="name" type="text" defaultValue={s.user.name} autoComplete="name" /></label>
             <label className="field" style={{ flex: "1 1 260px" }}>Email<input name="email" type="email" defaultValue={s.user.email} autoComplete="email" required /></label>
           </div>
+          <label className="field" style={{ maxWidth: 320 }}>Current password<span className="hint">Only needed to change your email.</span><input name="current" type="password" autoComplete="current-password" /></label>
           <button className="btn" type="submit" style={{ alignSelf: "flex-start" }}>Save</button>
         </form>
         <form action={changePassword} className="stack" style={{ borderTop: "1px solid var(--line)", paddingTop: 14 }}>
@@ -142,6 +172,10 @@ export default async function Settings({ searchParams }: {
             <label className="field" style={{ flex: "1 1 220px" }}>New password<span className="hint">{PASSWORD_RULE}</span><input name="next" type="password" autoComplete="new-password" minLength={10} required /></label>
           </div>
           <button className="btn" type="submit" style={{ alignSelf: "flex-start" }}>Change password</button>
+        </form>
+        <form action={signOutEverywhere} className="row" style={{ borderTop: "1px solid var(--line)", paddingTop: 14, justifyContent: "space-between" }}>
+          <span className="small muted">Signed in on a shared or lost device? Sign out everywhere except here.</span>
+          <button className="btn" type="submit">Sign out other devices</button>
         </form>
       </section>
 
@@ -157,13 +191,17 @@ export default async function Settings({ searchParams }: {
               <span className="bdot" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>{(m.name || m.email).slice(0, 1).toUpperCase()}</span>
               <span className="who"><strong>{m.name || m.email}</strong><span className="small muted">{m.email} · {m.role === "owner" ? "Owner" : "Member"}</span></span>
               {owner && m.role !== "owner" && (
-                <form action={remove}><input type="hidden" name="user" value={m.id} /><button className="btn btn-ghost btn-danger" type="submit">Remove</button></form>
+                <span className="row" style={{ gap: 4 }}>
+                  <form action={resetLink}><input type="hidden" name="user" value={m.id} /><button className="btn btn-ghost" type="submit">Password reset link</button></form>
+                  <form action={remove}><input type="hidden" name="user" value={m.id} /><button className="btn btn-ghost btn-danger" type="submit">Remove</button></form>
+                </span>
               )}
             </li>
           ))}
         </ul>
         {owner && (
           <>
+            {q.reset && <CopyLink label={`Password reset link for ${q.for ?? "your teammate"} (works once, for ${RESET_LINK_HOURS} hours). Send it to them directly:`} url={`${origin}/reset?token=${q.reset}`} />}
             {q.invite && <CopyLink label="Invite link (works once, for 14 days). Send it to your teammate:" url={`${origin}/signup?invite=${q.invite}`} />}
             <form action={inviteTeammate} className="row" style={{ alignItems: "flex-end" }}>
               <label className="field" style={{ flex: "1 1 260px" }}>Invite a teammate<span className="hint">Optional: their email, so only they can use the link.</span><input name="email" type="email" placeholder="name@company.com" /></label>

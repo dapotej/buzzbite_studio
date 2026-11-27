@@ -15,7 +15,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url, 308);
   }
   const path = req.nextUrl.pathname;
-  if (path === "/login" || path === "/signup" || path.startsWith("/api/public/")) return NextResponse.next();
+  if (path === "/login" || path === "/signup" || path === "/forgot" || path === "/reset" || path.startsWith("/api/public/")) return NextResponse.next();
   if (await sessionUserId(req.cookies.get(SESSION_COOKIE)?.value)) return NextResponse.next();
   if (req.nextUrl.pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Sign in first." }, { status: 401 });

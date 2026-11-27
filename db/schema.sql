@@ -160,3 +160,19 @@ create table if not exists usage_events (
   created_at timestamptz not null default now()
 );
 create index if not exists usage_workspace_month on usage_events (workspace_id, created_at);
+
+-- v8: security basics. Sign-in attempts (rate limiting), password reset links,
+-- and a session version so changing a password signs out every other device.
+alter table users add column if not exists session_version int not null default 0;
+create table if not exists auth_attempts (
+  key text not null,                  -- "login:email:<email>", "login:ip:<ip>", "reset:ip:<ip>", ...
+  at timestamptz not null default now()
+);
+create index if not exists auth_attempts_key_at on auth_attempts (key, at);
+create table if not exists password_resets (
+  token_hash text primary key,        -- sha256 of the token in the link; the link itself is never stored
+  user_id uuid not null references users(id) on delete cascade,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);

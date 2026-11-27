@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { insertLead } from "@/lib/db";
+import { LIMITS, clientIp, limited, noteAttempt } from "@/lib/security";
 
 // Sign-ups from the Buzzbite website. Public: no session needed (see middleware).
 const ORIGINS = new Set(["https://buzzbite.io", "https://www.buzzbite.io"]);
@@ -30,6 +31,9 @@ export async function POST(req: Request) {
   if (!parsed.success) return NextResponse.json({ error: "Check your email address and try again." }, { status: 400, headers });
   const { website, ...lead } = parsed.data;
   if (website) return NextResponse.json({ ok: true }, { headers }); // a bot: pretend it worked
+  const ipKey = `lead:ip:${await clientIp()}`;
+  if (await limited([[ipKey, LIMITS.leadIp]])) return NextResponse.json({ error: "Too many sign-ups from here. Try again later." }, { status: 429, headers });
+  await noteAttempt(ipKey);
   try {
     await insertLead(lead);
   } catch (e) {

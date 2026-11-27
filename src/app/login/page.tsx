@@ -1,28 +1,35 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Wordmark } from "@/components/Logo";
 import { addMember, countUsers, createUser, createWorkspace, findUserByEmail, oldestWorkspace } from "@/lib/accounts";
-import { SESSION_COOKIE, createSessionValue, legacyPasswordMatches } from "@/lib/auth";
+import { legacyPasswordMatches } from "@/lib/auth";
 import { PASSWORD_RULE, hashPassword, passwordOk, verifyPassword } from "@/lib/passwords";
+import { LIMITS, clearAttempts, clientIp, limited, noteAttempt, startSession as signInDevice } from "@/lib/security";
 
 export const dynamic = "force-dynamic";
 
 const safeNext = (n: unknown) => (typeof n === "string" && n.startsWith("/") && !n.startsWith("//") ? n : "/");
 
 async function startSession(userId: string, next: string) {
-  const { value, maxAge } = await createSessionValue(userId);
-  (await cookies()).set(SESSION_COOKIE, value, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", maxAge, path: "/" });
+  await signInDevice(userId);
   redirect(safeNext(next));
 }
 
 async function signIn(formData: FormData) {
   "use server";
-  const email = String(formData.get("email") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "/");
+  // Slow down password guessing: too many failures for an account, or from one address, pause sign-in.
+  const emailKey = `login:email:${email}`;
+  const ipKey = `login:ip:${await clientIp()}`;
+  if (await limited([[emailKey, LIMITS.loginEmail], [ipKey, LIMITS.loginIp]])) redirect(`/login?error=limit&next=${encodeURIComponent(next)}`);
   const user = email ? await findUserByEmail(email) : null;
-  if (!user || !(await verifyPassword(password, user.password_hash))) redirect(`/login?error=wrong&next=${encodeURIComponent(next)}`);
+  if (!user || !(await verifyPassword(password, user.password_hash))) {
+    await noteAttempt(emailKey, ipKey);
+    redirect(`/login?error=wrong&next=${encodeURIComponent(next)}`);
+  }
+  await clearAttempts(emailKey);
   await startSession(user.id, next);
 }
 
@@ -31,7 +38,12 @@ async function claim(formData: FormData) {
   "use server";
   if ((await countUsers()) > 0) redirect("/login");
   const g = (k: string) => String(formData.get(k) ?? "").trim();
-  if (!(await legacyPasswordMatches(String(formData.get("legacy") ?? "")))) redirect("/login?error=legacy");
+  const ipKey = `login:ip:${await clientIp()}`;
+  if (await limited([[ipKey, LIMITS.loginIp]])) redirect("/login?error=limit");
+  if (!(await legacyPasswordMatches(String(formData.get("legacy") ?? "")))) {
+    await noteAttempt(ipKey);
+    redirect("/login?error=legacy");
+  }
   const password = String(formData.get("password") ?? "");
   if (!/^\S+@\S+\.\S+$/.test(g("email"))) redirect("/login?error=email");
   if (!passwordOk(password)) redirect("/login?error=short");
@@ -46,10 +58,11 @@ const ERRORS: Record<string, string> = {
   legacy: "That isn't the current Buzzbite password.",
   email: "Enter a valid email address.",
   short: `Choose a longer password. ${PASSWORD_RULE}`,
+  limit: "Too many tries. Wait 15 minutes and try again, or reset your password.",
 };
 
-export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; next?: string }> }) {
-  const { error, next } = await searchParams;
+export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; next?: string; reset?: string }> }) {
+  const { error, next, reset } = await searchParams;
   const firstRun = (await countUsers()) === 0;
   return (
     <main className="wrap" style={{ maxWidth: 440, paddingTop: "10vh", paddingInline: 16, paddingBottom: 48 }}>
@@ -79,7 +92,9 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
             <label className="field" htmlFor="password">Password<input id="password" name="password" type="password" autoComplete="current-password" required /></label>
             {error && <p className="error" role="alert">{ERRORS[error] ?? "Something went wrong. Try again."}</p>}
             <button className="btn btn-ink" type="submit">Sign in</button>
+            <Link href="/forgot" className="small" style={{ justifySelf: "start" }}>Forgot your password?</Link>
           </form>
+          {reset && <p className="small muted" role="status" style={{ marginTop: 12 }}>Password changed. Sign in with your new password.</p>}
           <p className="small muted" style={{ marginTop: 16 }}>New to Buzzbite? It&rsquo;s invite-only for now. <Link href="https://buzzbite.io/#waitlist">Join the waitlist</Link>.</p>
         </>
       )}
