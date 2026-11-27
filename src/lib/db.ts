@@ -2,6 +2,7 @@ import "server-only";
 import { neon } from "@neondatabase/serverless";
 import { requireSession } from "./accounts";
 import { noteAlert, resolveAlerts } from "./alerts";
+import { recordFal } from "./usage";
 import { EMPTY_PUBLISHING, type Brand, type BrandProfile, type BrandSettings, type BrandSocial, type Idea, type Media, type Post, type PostSpec, type PostStatus, type Publishing, type TrendItem, type TrendReport } from "./types";
 
 function client() {
@@ -225,7 +226,11 @@ export async function insertMedia(m: {
   return toMedia(rows[0]);
 }
 export async function finishMedia(id: string, patch: { status: "ready"; url: string } | { status: "failed"; error: string }): Promise<void> {
-  if (patch.status === "ready") await client()`update media set status = 'ready', url = ${patch.url}, error = null where id = ${id}`;
+  if (patch.status === "ready") {
+    const rows = await client()`update media set status = 'ready', url = ${patch.url}, error = null where id = ${id} and status <> 'ready'
+      returning brand_id, post_id, fal_endpoint, role`;
+    if (rows[0]) await recordFal(rows[0] as { brand_id: string; post_id: string | null; fal_endpoint: string | null; role: string | null });
+  }
   else await client()`update media set status = 'failed', error = ${patch.error} where id = ${id}`;
 }
 export async function deleteMedia(id: string): Promise<MediaRow | null> {

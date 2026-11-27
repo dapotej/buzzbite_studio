@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSession } from "@/lib/accounts";
 import { emailConfigured } from "@/lib/email";
+import { PLANS, type PlanId } from "@/lib/plans";
 import { health } from "@/lib/system";
+import { costliestPosts, costsThisMonth } from "@/lib/usage";
 import { postingConfigured } from "@/lib/zernio";
 import { ConnectWebhooks } from "./ConnectWebhooks";
 
@@ -15,7 +17,8 @@ const when = (d: string) => new Date(d).toLocaleString("en-GB", { day: "numeric"
 export default async function HealthPage() {
   const s = await getSession();
   if (s?.workspace.plan !== "internal") notFound();
-  const h = await health();
+  const [h, costs, posts] = await Promise.all([health(), costsThisMonth(), costliestPosts()]);
+  const usd = (n: number) => `$${n.toFixed(2)}`;
   const checks: [string, boolean, string][] = [
     ["Photos and video finish with no tab open", process.env.VERCEL_ENV === "production", "fal.ai calls the app back when a job finishes (production only)."],
     ["Daily safety check", Boolean(process.env.CRON_SECRET), "Set CRON_SECRET in Vercel. Vercel then runs the check every morning."],
@@ -38,6 +41,30 @@ export default async function HealthPage() {
           ))}
         </ul>
         {postingConfigured() && <ConnectWebhooks />}
+      </section>
+
+      <section className="card stack" style={{ overflowX: "auto" }}>
+        <h2 style={{ margin: 0, fontSize: 18 }}>AI cost this month</h2>
+        <p className="small muted" style={{ margin: 0 }}>Claude costs come from token counts; photo, video and sound costs are estimates per job.</p>
+        <table className="health"><thead><tr><th>Workspace</th><th>Plan</th><th>Posts</th><th>Claude</th><th>Photos, video, sound</th><th>Total</th><th>Per post</th><th>Plan price</th><th>Cost share</th></tr></thead><tbody>
+          {costs.map((c) => {
+            const price = PLANS[c.plan as PlanId]?.usd ?? null;
+            return (
+              <tr key={c.workspace_id}>
+                <td>{c.workspace}</td><td>{PLANS[c.plan as PlanId]?.name ?? c.plan}</td><td>{c.posts}</td>
+                <td>{usd(c.claude)}</td><td>{usd(c.fal)}</td><td><b>{usd(c.total)}</b></td>
+                <td>{c.posts ? usd(c.total / c.posts) : "–"}</td><td>{price ? `$${price}` : "–"}</td>
+                <td>{price ? `${Math.round((c.total / price) * 100)}%` : "–"}</td>
+              </tr>
+            );
+          })}
+        </tbody></table>
+        {posts.length > 0 && (<>
+          <h3 style={{ margin: "8px 0 0", fontSize: 15 }}>Most expensive posts (photos, video and sound)</h3>
+          <table className="health"><thead><tr><th>Post</th><th>Brand</th><th>Jobs</th><th>Cost</th></tr></thead><tbody>
+            {posts.map((p) => <tr key={p.id}><td>{p.title}</td><td>{p.brand}</td><td>{p.jobs}</td><td>{usd(p.cost)}</td></tr>)}
+          </tbody></table>
+        </>)}
       </section>
 
       <section className="card stack" style={{ overflowX: "auto" }}>

@@ -2,6 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
+import { recordClaude } from "./usage";
 import { BrandProfileSchema, PostSpecSchema, TEMPLATES, TEMPLATE_IDS, TrendReportSchema, type BrandProfile, type Post } from "./types";
 
 const MODEL = "claude-opus-5-5";
@@ -27,6 +28,7 @@ async function structured<T extends z.ZodType>(opts: {
   schema: T;
   effort?: "low" | "medium" | "high";
   maxTokens?: number;
+  action: string;
 }): Promise<z.infer<T>> {
   const format = betaZodOutputFormat(opts.schema);
   try {
@@ -41,6 +43,7 @@ async function structured<T extends z.ZodType>(opts: {
         output_config: { effort: opts.effort ?? "medium", format: { type: "json_schema", schema: format.schema } },
       })
       .finalMessage();
+    await recordClaude(opts.action, res.model, res.usage);
     if (res.stop_reason === "refusal") throw new AIError("Claude declined this request. Try rewording it.");
     if (res.stop_reason === "max_tokens") throw new AIError("The answer was too long. Try fewer posts at once.");
     const text = res.content.filter((b) => b.type === "text").map((b) => (b as { text: string }).text).join("");
@@ -91,6 +94,7 @@ export type PostDraft = z.infer<typeof PostDraftSchema>;
 
 export async function draftBrandProfile(name: string, source: string): Promise<BrandProfile> {
   return structured({
+    action: "brand profile",
     system:
       "You are a brand strategist setting up an automated social media system for a business. Read the source material and produce a brand profile. " +
       "Use only what the material supports; where it says nothing, make a modest, sensible choice. Facts must come from the material, never invented. " +
@@ -113,6 +117,7 @@ export async function planPosts(
 ): Promise<(PostDraft & { date: string })[]> {
   const Schema = z.object({ posts: z.array(PostDraftSchema.extend({ date: z.string().describe("One of the given dates, YYYY-MM-DD.") })) });
   const out = await structured({
+    action: "plan posts",
     system:
       "You are the social media lead for a brand on LinkedIn and Instagram. You plan and write finished posts that the owner only needs to approve.\n\n" +
       VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES,
@@ -137,6 +142,7 @@ ${context.trends ? `\nWhat is happening now (from today's trend research):\n${co
 /** Writes one finished post from a brief (a trend idea or the owner's request). */
 export async function draftOne(brand: BrandProfile, brief: string, date: string, avoidTemplate?: string): Promise<PostDraft> {
   return structured({
+    action: "draft post",
     system: "You are the social media lead for a brand. Turn the brief into one finished post.\n\n" + VOICE_RULES + "\n\n" + DESIGN_GUIDE + "\n\n" + CAPTION_RULES,
     prompt: `Brand profile:\n${brandBrief(brand)}\n\nPublish date: ${date}\nBrief: ${brief}${avoidTemplate ? `\nUse a different template from "${avoidTemplate}".` : ""}`,
     schema: PostDraftSchema,
@@ -151,6 +157,7 @@ const RevisionSchema = PostDraftSchema.extend({
 export async function revisePost(brand: BrandProfile, post: Pick<Post, "title" | "pillar" | "spec" | "linkedin" | "instagram">, instruction: string) {
   const { media, clip, ...spec } = post.spec;
   return structured({
+    action: "revise post",
     system:
       "You revise a finished social post for a brand. Apply the owner's request and change nothing else. " +
       "If they ask for a new photo or the image no longer suits the post, write a new imagePrompt and set newPhoto true.\n\n" +
@@ -192,6 +199,7 @@ export async function researchTrends(brand: BrandProfile, today: string) {
           output_config: { effort: "medium" },
         })
         .finalMessage();
+      await recordClaude("trend research", res.model, res.usage);
       for (const block of res.content) {
         if (block.type === "text") notes += block.text;
         if (block.type === "web_search_tool_result" && Array.isArray(block.content)) {
@@ -211,6 +219,7 @@ export async function researchTrends(brand: BrandProfile, today: string) {
   if (!notes.trim()) throw new AIError("The research came back empty. Try again.");
 
   const report = await structured({
+    action: "trend ideas",
     system:
       "You turn web research notes into a list of 8-10 post ideas for a brand's social media, most timely first. Each idea must be grounded in the notes " +
       "and cite only URLs listed in the sources. Skip anything not relevant to this brand's audience.\n\n" + VOICE_RULES,
